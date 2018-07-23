@@ -8,13 +8,10 @@ from shapely.geometry import Point, LineString
 # -----------------------------------------------------------------------------------------
 
 t_pinhole_x = 5.
-t_pinhole_y = 104.
+t_pinhole_y = 100.8
 
-f_pinhole_x = 104.
+f_pinhole_x = 110.8
 f_pinhole_y = 0.
-
-b_pinhole_x = 5.
-b_pinhole_y = -104.
 
 print('t_pinhole_x:', t_pinhole_x)
 print('t_pinhole_y:', t_pinhole_y)
@@ -22,15 +19,12 @@ print('t_pinhole_y:', t_pinhole_y)
 print('f_pinhole_x:', f_pinhole_x)
 print('f_pinhole_y:', f_pinhole_y)
 
-print('b_pinhole_x:', b_pinhole_x)
-print('b_pinhole_y:', b_pinhole_y)
-
 # -----------------------------------------------------------------------------------------
 
-n = 8           # number of detectors per camera
-size = 1.5      # detector size
-space = 10./18. # space between detectors
-dist = 10.      # distance from camera to pinhole
+n = 16          # number of detectors per camera
+size = 0.75     # detector size
+space = 0.2     # space between detectors
+dist = 7.1      # distance from camera to pinhole
 
 t_detector_x = t_pinhole_x - (n*size + (n-1)*space)/2. + size/2. + np.arange(n)*(size + space)
 t_detector_y = (t_pinhole_y + dist) * np.ones(n)
@@ -38,17 +32,11 @@ t_detector_y = (t_pinhole_y + dist) * np.ones(n)
 f_detector_x = (f_pinhole_x + dist) * np.ones(n)
 f_detector_y = f_pinhole_y + (n*size + (n-1)*space)/2. - size/2. - np.arange(n)*(size + space)
 
-b_detector_x = b_pinhole_x + (n*size + (n-1)*space)/2. - size/2. - np.arange(n)*(size + space)
-b_detector_y = (b_pinhole_y - dist) * np.ones(n)
-
 print('t_detector_x:', t_detector_x)
 print('t_detector_y:', t_detector_y)
 
 print('f_detector_x:', f_detector_x)
 print('f_detector_y:', f_detector_y)
-
-print('b_detector_x:', b_detector_x)
-print('b_detector_y:', b_detector_y)
 
 # -----------------------------------------------------------------------------------------
 
@@ -87,23 +75,6 @@ for i in range(n):
     x1, y1 = segment.coords[1]
     print('%10s %10.6f %10.6f %10.6f %10.6f' % ('front', x0, y0, x1, y1))
     coords.append(['front', x0, y0, x1, y1])
-
-for i in range(n):
-    x0 = b_detector_x[i]
-    y0 = b_detector_y[i]
-    x1 = b_pinhole_x
-    y1 = b_pinhole_y
-    m = (y1-y0)/(x1-x0)
-    b = (y0*x1-y1*x0)/(x1-x0)
-    y2 = 100.
-    x2 = (y2-b)/m
-    line = LineString([(x0, y0), (x2, y2)])
-    circle = Point(0., 0.).buffer(100.).boundary
-    segment = line.difference(circle)[1]
-    x0, y0 = segment.coords[0]
-    x1, y1 = segment.coords[1]
-    print('%10s %10.6f %10.6f %10.6f %10.6f' % ('bottom', x0, y0, x1, y1))
-    coords.append(['bottom', x0, y0, x1, y1])
 
 # -----------------------------------------------------------------------------------------
 

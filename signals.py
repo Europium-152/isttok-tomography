@@ -22,36 +22,73 @@ def get_data(shot, channel):
 
 # -------------------------------------------------------------------------
 
-shot = 17552
+#0, 0cm 
+shot = 43649
+# #0, 3cm
+# shot =  43650
+# #0, 5cm 
+# shot = 43653
+# shot = 43655
+
+# #90, 5cm
+# shot = 43659
+# #90, 7cm
+# shot = 43657
+
+# #180, 5cm 
+# shot = 43660
+
+# #270, 5cm
+# shot = 43661 
+
+# #315, 5cm 
+# shot = 43662
+
+# #45, 5cm
+# shot = 43663
+
+# #135, 5cm
+# shot = 43664
+
+# #225o, 5cm
+# shot = 43665
+
 
 channels = [
     # top camera
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_0',
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_1',
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_2',
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_3',
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_4',
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_5',
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_6',
-    'TR512_TOMOGRAPHY.TR512_B02.CHANNEL_7',
+    'MARTE_NODE_TOMO.DataCollection.Channel_011',
+    'MARTE_NODE_TOMO.DataCollection.Channel_012',
+    'MARTE_NODE_TOMO.DataCollection.Channel_009',
+    'MARTE_NODE_TOMO.DataCollection.Channel_014',
+    'MARTE_NODE_TOMO.DataCollection.Channel_015',
+    'MARTE_NODE_TOMO.DataCollection.Channel_008',
+    'MARTE_NODE_TOMO.DataCollection.Channel_010',
+    'MARTE_NODE_TOMO.DataCollection.Channel_013',
+    'MARTE_NODE_TOMO.DataCollection.Channel_005',
+    'MARTE_NODE_TOMO.DataCollection.Channel_004',
+    'MARTE_NODE_TOMO.DataCollection.Channel_007',
+    'MARTE_NODE_TOMO.DataCollection.Channel_003',
+    'MARTE_NODE_TOMO.DataCollection.Channel_001',
+    'MARTE_NODE_TOMO.DataCollection.Channel_000',
+    'MARTE_NODE_TOMO.DataCollection.Channel_006',
+    'MARTE_NODE_TOMO.DataCollection.Channel_002',
     # front camera
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_0',
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_1',
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_2',
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_3',
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_4',
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_5',
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_6',
-    'TR512_TOMOGRAPHY.TR512_B00.CHANNEL_7',
-    # bottom camera
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_0',
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_1',
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_2',
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_3',
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_4',
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_5',
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_6',
-    'TR512_TOMOGRAPHY.TR512_B01.CHANNEL_7']
+    'MARTE_NODE_TOMO.DataCollection.Channel_028',
+    'MARTE_NODE_TOMO.DataCollection.Channel_027',
+    'MARTE_NODE_TOMO.DataCollection.Channel_030',
+    'MARTE_NODE_TOMO.DataCollection.Channel_025',
+    'MARTE_NODE_TOMO.DataCollection.Channel_024',
+    'MARTE_NODE_TOMO.DataCollection.Channel_031',
+    'MARTE_NODE_TOMO.DataCollection.Channel_029',
+    'MARTE_NODE_TOMO.DataCollection.Channel_026',
+    'MARTE_NODE_TOMO.DataCollection.Channel_020',
+    'MARTE_NODE_TOMO.DataCollection.Channel_021',
+    'MARTE_NODE_TOMO.DataCollection.Channel_019',
+    'MARTE_NODE_TOMO.DataCollection.Channel_023',
+    'MARTE_NODE_TOMO.DataCollection.Channel_016',
+    'MARTE_NODE_TOMO.DataCollection.Channel_017',
+    'MARTE_NODE_TOMO.DataCollection.Channel_018',
+    'MARTE_NODE_TOMO.DataCollection.Channel_022',]
 
 signals_data = []
 signals_time = []
@@ -71,18 +108,13 @@ for channel in channels:
     signals_data.append(data)
     signals_time.append(time)
     plt.plot(time, data)
-    if channel == channels[7]:
+    if channel == channels[15]:
         plt.title('signals (top camera)')
         plt.xlabel('t (s)')
         plt.legend()
         plt.show()
-    if channel == channels[15]:
+    if channel == channels[31]:
         plt.title('signals (front camera)')
-        plt.xlabel('t (s)')
-        plt.legend()
-        plt.show()
-    if channel == channels[23]:
-        plt.title('signals (bottom camera)')
         plt.xlabel('t (s)')
         plt.legend()
         plt.show()

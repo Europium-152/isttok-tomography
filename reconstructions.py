@@ -62,9 +62,9 @@ DtDh = np.dot(np.transpose(Dh), Dh)
 DtDv = np.dot(np.transpose(Dv), Dv)
 ItIo = np.dot(np.transpose(Io), Io)
 
-alpha_1 = 1e3
+alpha_1 = 1e-5
 alpha_2 = alpha_1
-alpha_3 = alpha_1*10
+alpha_3 = alpha_1*1000
 
 inv = np.linalg.inv(PtP + alpha_1*DtDh + alpha_2*DtDv + alpha_3*ItIo)
 
@@ -73,13 +73,14 @@ M = np.dot(inv, Pt)
 # -------------------------------------------------------------------------
 
 tomo = []
-tomo_t = np.arange(0., signals_time[0,-1], 0.005)
+tomo_t = np.arange(0., signals_time[0,-1], 0.01)
 
 for t in tomo_t:
     i = np.argmin(np.fabs(signals_time[0] - t))
     f = signals_data[:,i].reshape((-1, 1))
     g = np.dot(M, f)
     tomo.append(g.reshape((n_rows, n_cols)))
+    print(signals_time[0,i])
 
 tomo = np.array(tomo)
 
@@ -93,7 +94,10 @@ vmax = np.max(tomo)
 
 ni = 4
 nj = tomo.shape[0]/ni
+nj = 6
+
 fig, ax = plt.subplots(ni, nj, figsize=(2*nj, 2*ni))
+
 
 for i in range(ni):
     for j in range(nj):
@@ -103,3 +107,31 @@ for i in range(ni):
         ax[i,j].set_axis_off()
 
 plt.show()
+
+# -------------------------------------------------------------------------
+
+
+f_v = np.dot(P,np.clip(tomo.reshape(tomo.shape[0],-1).transpose(),a_min = 0, a_max = None))
+f = signals_data
+print('f_v:', f_v.shape)
+print('f:', f.shape)
+
+# print(f[8,8])
+# print(f_v[8,8])
+# print(np.dot(P[8],tomo[8].flatten()))
+
+
+# plt.figure()
+# plt.imshow(P[8].reshape(n_rows,n_cols),extent = [-100., 100., -100., 100.])
+# plt.colorbar()
+# plt.figure()
+# print(tomo[8].shape)
+# plt.imshow(tomo[8],extent = [-100., 100., -100., 100.])
+# plt.colorbar()
+# plt.show()
+
+for i in range(f.shape[0]):
+	plt.figure()
+	plt.plot(tomo_t,f_v[i],'r')
+	plt.plot(tomo_t,f[i],'b')
+	plt.show()
