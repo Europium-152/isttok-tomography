@@ -55,9 +55,8 @@ For a different setup, feel free to adapt this code according to the license ter
     
     - The signals data and time are stored separately in `signals_data.npy` and `signals_time.npy`.
     
-![signals-top](https://raw.githubusercontent.com/diogoff/isttok-tomography/master/images/signals-top.png)
-![signals-front](https://raw.githubusercontent.com/diogoff/isttok-tomography/master/images/signals-front.png)
-![signals-bottom](https://raw.githubusercontent.com/diogoff/isttok-tomography/master/images/signals-bottom.png)
+![signals-top](https://raw.githubusercontent.com/diogodcarvalho/isttok-tomography/master/images/signals-top.png)
+![signals-front](https://raw.githubusercontent.com/diogodcarvalho/isttok-tomography/master/images/signals-front.png)
 
 ## Reconstructions
 
