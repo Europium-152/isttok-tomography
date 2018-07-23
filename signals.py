@@ -112,11 +112,13 @@ for channel in channels:
         plt.title('signals (top camera)')
         plt.xlabel('t (s)')
         plt.legend()
+        plt.savefig('./images/signals-top.png',dpi = 300)
         plt.show()
     if channel == channels[31]:
         plt.title('signals (front camera)')
         plt.xlabel('t (s)')
         plt.legend()
+        plt.savefig('./images/signals-front.png',dpi = 300)
         plt.show()
 
 # -------------------------------------------------------------------------
