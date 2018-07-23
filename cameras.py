@@ -89,8 +89,6 @@ df.to_csv(fname, index=False)
 for (i, row) in enumerate(df.itertuples()):
     if i < n:
         color = 'darkturquoise'
-    elif i < 2*n:
-        color = 'limegreen'
     else:
         color = 'orange'
     plt.plot([row.x0, row.x1], [row.y0, row.y1], color)
@@ -106,5 +104,5 @@ plt.xlabel('x (mm)')
 plt.ylabel('y (mm)')
 
 plt.title('cameras')
-
+plt.savefig('./images/cameras.png',dpi = 300)
 plt.show()

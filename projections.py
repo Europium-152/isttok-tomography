@@ -86,6 +86,7 @@ for i in range(ni):
         ax[i,j].set_axis_off()
 
 fig.suptitle('projections (top camera)')
+plt.savefig('./images/projections-top.png',dpi = 300)
 plt.show()
 
 fig, ax = plt.subplots(ni, nj, figsize=figsize)
@@ -96,4 +97,5 @@ for i in range(ni):
         ax[i,j].set_axis_off()
 
 fig.suptitle('projections (front camera)')
+plt.savefig('./images/projections-front.png',dpi = 300)
 plt.show()
