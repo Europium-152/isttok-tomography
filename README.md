@@ -2,11 +2,7 @@
 
 This repository contains the source code for the tomography course at the ISTTOK training program on [Tokamak Engineering and Operation](https://isttok.tecnico.ulisboa.pt/~isttok.daemon/index.php?title=Training).
 
-The code is based on the 3-camera setup described in the [PhD thesis](http://bibliotecas.utl.pt/cgi-bin/koha/opac-detail.pl?biblionumber=428085) of P. J. Carvalho.
-
-![fig3.2](https://raw.githubusercontent.com/diogoff/isttok-tomography/master/images/fig3.2.png)
-
-For a different setup, feel free to adapt this code according to the license terms.
+The code is based on the work from the original repository but for a different geometry with solely 2 cameras and different detectors
 
 ## Cameras
 
@@ -55,9 +51,8 @@ For a different setup, feel free to adapt this code according to the license ter
     
     - The signals data and time are stored separately in `signals_data.npy` and `signals_time.npy`.
     
-![signals-top](https://raw.githubusercontent.com/diogoff/isttok-tomography/master/images/signals-top.png)
-![signals-front](https://raw.githubusercontent.com/diogoff/isttok-tomography/master/images/signals-front.png)
-![signals-bottom](https://raw.githubusercontent.com/diogoff/isttok-tomography/master/images/signals-bottom.png)
+![signals-top](https://raw.githubusercontent.com/diogodcarvalho/isttok-tomography/master/images/signals-top.png)
+![signals-front](https://raw.githubusercontent.com/diogodcarvalho/isttok-tomography/master/images/signals-front.png)
 
 ## Reconstructions
 
