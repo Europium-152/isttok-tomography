@@ -15,8 +15,8 @@ print(df)
 
 # -----------------------------------------------------------------------------------------
 
-n_rows = 30  # y-axis pixel resolution
-n_cols = 30  # x-axis pixel resolution
+n_rows = 45  # y-axis pixel resolution
+n_cols = 45  # x-axis pixel resolution
 
 x_min = -100.
 x_max = +100.

@@ -27,7 +27,7 @@ shot = 43649
 # #0, 3cm
 # shot =  43650
 # #0, 5cm 
-# shot = 43653
+#shot = 43653
 # shot = 43655
 
 # #90, 5cm
@@ -53,25 +53,43 @@ shot = 43649
 # #225o, 5cm
 # shot = 43665
 
+shot = 43837
+
 
 channels = [
     # top camera
-    'MARTE_NODE_TOMO.DataCollection.Channel_011',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_011',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_012',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_009',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_014',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_015',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_008',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_010',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_013',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_005',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_004',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_007',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_003',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_001',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_000',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_006',
+    # 'MARTE_NODE_TOMO.DataCollection.Channel_002',
     'MARTE_NODE_TOMO.DataCollection.Channel_012',
-    'MARTE_NODE_TOMO.DataCollection.Channel_009',
+    'MARTE_NODE_TOMO.DataCollection.Channel_011',
     'MARTE_NODE_TOMO.DataCollection.Channel_014',
-    'MARTE_NODE_TOMO.DataCollection.Channel_015',
+    'MARTE_NODE_TOMO.DataCollection.Channel_009',
     'MARTE_NODE_TOMO.DataCollection.Channel_008',
-    'MARTE_NODE_TOMO.DataCollection.Channel_010',
+    'MARTE_NODE_TOMO.DataCollection.Channel_015',
     'MARTE_NODE_TOMO.DataCollection.Channel_013',
-    'MARTE_NODE_TOMO.DataCollection.Channel_005',
+    'MARTE_NODE_TOMO.DataCollection.Channel_010',
     'MARTE_NODE_TOMO.DataCollection.Channel_004',
-    'MARTE_NODE_TOMO.DataCollection.Channel_007',
+    'MARTE_NODE_TOMO.DataCollection.Channel_005',
     'MARTE_NODE_TOMO.DataCollection.Channel_003',
-    'MARTE_NODE_TOMO.DataCollection.Channel_001',
+    'MARTE_NODE_TOMO.DataCollection.Channel_007',
     'MARTE_NODE_TOMO.DataCollection.Channel_000',
-    'MARTE_NODE_TOMO.DataCollection.Channel_006',
+    'MARTE_NODE_TOMO.DataCollection.Channel_001',
     'MARTE_NODE_TOMO.DataCollection.Channel_002',
+    'MARTE_NODE_TOMO.DataCollection.Channel_006',
     # front camera
     'MARTE_NODE_TOMO.DataCollection.Channel_028',
     'MARTE_NODE_TOMO.DataCollection.Channel_027',
@@ -90,6 +108,7 @@ channels = [
     'MARTE_NODE_TOMO.DataCollection.Channel_018',
     'MARTE_NODE_TOMO.DataCollection.Channel_022',]
 
+
 signals_data = []
 signals_time = []
 
@@ -107,7 +126,7 @@ for channel in channels:
     time = time[:data.shape[0]]
     signals_data.append(data)
     signals_time.append(time)
-    plt.plot(time, data)
+    plt.plot(time, data,label = channel[-3:])
     if channel == channels[15]:
         plt.title('signals (top camera)')
         plt.xlabel('t (s)')

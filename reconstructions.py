@@ -130,8 +130,8 @@ print('f:', f.shape)
 # plt.colorbar()
 # plt.show()
 
-for i in range(f.shape[0]):
-	plt.figure()
-	plt.plot(tomo_t,f_v[i],'r')
-	plt.plot(tomo_t,f[i],'b')
-	plt.show()
+# for i in range(f.shape[0]):
+# 	plt.figure()
+# 	plt.plot(tomo_t,f_v[i],'r')
+# 	plt.plot(tomo_t,f[i],'b')
+# 	plt.show()
