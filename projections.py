@@ -74,7 +74,7 @@ np.save(fname, projections)
 vmin = 0.
 vmax = np.sqrt(((x_max-x_min)/n_cols)**2 + ((y_max-y_min)/n_rows)**2)
 
-ni = 2
+ni = 4
 nj = 4
 figsize = (2*nj, 2*ni)
 

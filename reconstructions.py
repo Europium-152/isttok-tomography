@@ -91,6 +91,7 @@ print('tomo_t:', tomo_t.shape, tomo_t.dtype)
 
 vmin = 0.
 vmax = np.max(tomo)
+print(vmax)
 
 ni = 4
 nj = tomo.shape[0]/ni

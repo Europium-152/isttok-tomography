@@ -53,7 +53,7 @@ shot = 43649
 # #225o, 5cm
 # shot = 43665
 
-shot = 43837
+shot = 43872
 
 
 channels = [
@@ -127,6 +127,7 @@ for channel in channels:
     signals_data.append(data)
     signals_time.append(time)
     plt.plot(time, data,label = channel[-3:])
+    print('max: ', np.max(data))
     if channel == channels[15]:
         plt.title('signals (top camera)')
         plt.xlabel('t (s)')
