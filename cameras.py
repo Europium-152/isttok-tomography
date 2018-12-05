@@ -8,9 +8,9 @@ from shapely.geometry import Point, LineString
 # -----------------------------------------------------------------------------------------
 
 t_pinhole_x = 5.
-t_pinhole_y = 100.8
+t_pinhole_y = 97.
 
-f_pinhole_x = 110.8
+f_pinhole_x = 109.
 f_pinhole_y = 0.
 
 print('t_pinhole_x:', t_pinhole_x)
@@ -21,16 +21,17 @@ print('f_pinhole_y:', f_pinhole_y)
 
 # -----------------------------------------------------------------------------------------
 
-n = 16          # number of detectors per camera
-size = 0.75     # detector size
-space = 0.2     # space between detectors
-dist = 7.1      # distance from camera to pinhole
+n = 16            # number of detectors per camera
+size = 0.75       # detector size
+space = 0.2       # space between detectors
+dist = 9.0        # distance from camera to pinhole
+step = size+space # distance between the centers of adjacent detectors
 
-t_detector_x = t_pinhole_x - (n*size + (n-1)*space)/2. + size/2. + np.arange(n)*(size + space)
+t_detector_x = t_pinhole_x - (n-1)*step/2. + np.arange(n)*(step)
 t_detector_y = (t_pinhole_y + dist) * np.ones(n)
 
 f_detector_x = (f_pinhole_x + dist) * np.ones(n)
-f_detector_y = f_pinhole_y + (n*size + (n-1)*space)/2. - size/2. - np.arange(n)*(size + space)
+f_detector_y = f_pinhole_y + (n-1)*step/2. - np.arange(n)*(step)
 
 print('t_detector_x:', t_detector_x)
 print('t_detector_y:', t_detector_y)

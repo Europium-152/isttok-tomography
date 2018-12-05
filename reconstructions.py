@@ -3,6 +3,11 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.draw import ellipse
+import sys
+
+plt.close("all")
+
+plt.rcParams.update({'font.size': 18})
 
 # -------------------------------------------------------------------------
 
@@ -62,9 +67,13 @@ DtDh = np.dot(np.transpose(Dh), Dh)
 DtDv = np.dot(np.transpose(Dv), Dv)
 ItIo = np.dot(np.transpose(Io), Io)
 
-alpha_1 = 1e-5
+#alpha_1 = 1e-5
+#alpha_2 = alpha_1
+#alpha_3 = alpha_1*1000
+
+alpha_1 = 1e-2
 alpha_2 = alpha_1
-alpha_3 = alpha_1*1000
+alpha_3 = alpha_1*10
 
 inv = np.linalg.inv(PtP + alpha_1*DtDh + alpha_2*DtDv + alpha_3*ItIo)
 
@@ -72,15 +81,19 @@ M = np.dot(inv, Pt)
 
 # -------------------------------------------------------------------------
 
+
 tomo = []
-tomo_t = np.arange(0., signals_time[0,-1], 0.01)
+#tomo_t = np.arange(0., signals_time[0,-1], 0.005)
+tomo_t = np.arange(68000.,84000.,1000.)
+
+
+#sys.exit()
 
 for t in tomo_t:
     i = np.argmin(np.fabs(signals_time[0] - t))
     f = signals_data[:,i].reshape((-1, 1))
     g = np.dot(M, f)
     tomo.append(g.reshape((n_rows, n_cols)))
-    print(signals_time[0,i])
 
 tomo = np.array(tomo)
 
@@ -89,22 +102,19 @@ print('tomo_t:', tomo_t.shape, tomo_t.dtype)
 
 # -------------------------------------------------------------------------
 
+
 vmin = 0.
 vmax = np.max(tomo)
-print(vmax)
 
 ni = 4
 nj = tomo.shape[0]/ni
-nj = 6
-
 fig, ax = plt.subplots(ni, nj, figsize=(2*nj, 2*ni))
-
 
 for i in range(ni):
     for j in range(nj):
         k = i*nj + j
         ax[i,j].imshow(tomo[k], vmin=vmin, vmax=vmax)
-        ax[i,j].set_title('t=%.3fs' % tomo_t[k])
+        ax[i,j].set_title('t=%.f ms' % (tomo_t[k]/1000.))
         ax[i,j].set_axis_off()
 
 plt.show()
