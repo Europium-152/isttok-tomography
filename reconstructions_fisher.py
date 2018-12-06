@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage.draw import ellipse
 import sys
+from scipy.ndimage.measurements import center_of_mass
+from numpy import unravel_index
 
 plt.close("all")
 
@@ -13,6 +15,8 @@ def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return (idx,array[idx])
+
+
 
 # -------------------------------------------------------------------------
 
@@ -42,10 +46,21 @@ P = projections.reshape((projections.shape[0], -1))
 
 print('P:', P.shape, P.dtype)
 
-# -------------------------------------------------------------------------
+
+# Reconstruction Resolution -----------------------------------------------
 
 n_rows = projections.shape[1]
-n_cols = projections.shape[2]
+n_cols = projections.shape[2]    
+res=[4.4444,4.4444] # x,y (mm)
+
+# x and y arrays for ploting purposes
+x_array_plot=( np.arange(n_cols+1) - n_cols/2. )*res[0]
+y_array_plot=( n_rows/2. - np.arange(n_rows+1) )*res[1]
+
+# x and y arrays for calculation purposes
+x_array=np.arange
+
+# ------------------------------------------------------------------------
 
 Dh = np.eye(n_rows*n_cols) - np.roll(np.eye(n_rows*n_cols), 1, axis=1)
 Dv = np.eye(n_rows*n_cols) - np.roll(np.eye(n_rows*n_cols), n_cols, axis=1)
@@ -68,11 +83,11 @@ print('Io:', Io.shape, Io.dtype)
 # Minimum Fisher Information-----------------------------------------------
 
 
-time=88000.
+time=116500.
 time_index,time=find_nearest(signals_time[0],time)
 f=signals_data[:,time_index]
 
-alpha_1 = 1e-4
+alpha_1 = 1e-5
 alpha_2 = alpha_1
 alpha_3 = alpha_1*10
 
@@ -97,7 +112,7 @@ plt.colorbar()
 # Then we go into the iterations
 i=0
 stop_criteria=1e-4
-max_iterations=20
+max_iterations=10
 while True:
     
     i=i+1;
@@ -125,7 +140,25 @@ while True:
     
     g_old=np.array(g_new) # Explicitly copy because python will not
         
+g_matrix=g_new.reshape((n_rows,n_cols))
+centroid=center_of_mass(g_matrix)
+print ('centroid in index coordinates:',(centroid[1],centroid[0]))
+center_y=n_rows*res[1]/2.-centroid[0]*res[1]
+center_x=-n_cols*res[0]/2.+centroid[1]*res[0]
+
+maximum=unravel_index(g_matrix.argmax(), g_matrix.shape)
+
+max_y=n_rows*res[1]/2.-maximum[0]*res[1]-res[1]/2.    
+max_x=-n_cols*res[0]/2.+maximum[1]*res[0]+res[1]/2.
+
+print('coordinates of maximum:',(max_x,max_y))
+
+print ('centroid in space coordinates:', (center_x,center_y))
 plt.figure()
-plt.imshow(g_new.reshape((n_rows, n_cols)))
+plt.axes().set_aspect('equal', 'datalim')
+plt.pcolormesh(x_array,y_array,g_new.reshape((n_rows, n_cols)))
+#plt.imshow(g_new.reshape((n_rows, n_cols)))
+plt.plot(center_x, center_y, 'r+')
+plt.plot(max_x, max_y, 'b+')
 plt.colorbar()
     

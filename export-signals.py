@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import shift
 from scipy.optimize import curve_fit
 import numpy as np
+from calibrationShots import shots
 
 plt.close("all")
 
@@ -56,7 +57,7 @@ channels=[
 signals_data = []
 signals_time = []
 
-shot=44018
+shot=shots[0]
 plt.figure(figsize=(20,12))
 for tag in channels:
     
