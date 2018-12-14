@@ -54,58 +54,67 @@ channels=[
 "cal_out_16",
         ]
 
-signals_data = []
-signals_time = []
+def exportSignals(shot_id,plot=False):
 
-shot=shots[0]
-plt.figure(figsize=(20,12))
-for tag in channels:
+    signals_data = []
+    signals_time = []
     
-    x=ISTTOKSignal(shot,tag=tag,uid=False,time_scale=1e-6,cache_dir='../daniel-tomografia/local/shot-cache/')
-    detrend=baseline.baseline(x,deg=1)
-    data=x.values-detrend
-    time=x.times
+    shot=shots[shot_id]
     
-    n = 10
-    data = np.cumsum(data, axis=0)
-    data = (data[n:]-data[:-n])/n
-    data = data[::n]
-    data = np.clip(data, 0., None)
-    time = time[n//2::n]
-    time = time[:data.shape[0]]
-    signals_data.append(data)
-    signals_time.append(time)
-    plt.plot(time, data, label=tag)
-    if tag == channels[15]:
-        plt.title('signals (top camera)')
-        plt.xlabel('t (s)')
-        plt.legend()
-        plt.show()
-        plt.figure(figsize=(20,12))
-    if tag == channels[31]:
-        plt.title('signals (front camera)')
-        plt.xlabel('t (s)')
-        plt.legend()
-        plt.show()
-
+    if plot: plt.figure(figsize=(20,12))
+    
+    for tag in channels:
         
-# -------------------------------------------------------------------------
+        x=ISTTOKSignal(shot,tag=tag,uid=False,time_scale=1e-6,cache_dir='../daniel-tomografia/local/shot-cache/')
+        detrend=baseline.baseline(x,deg=1)
+        data=x.values-detrend
+        time=x.times
+        
+        n = 10
+        data = np.cumsum(data, axis=0)
+        data = (data[n:]-data[:-n])/n
+        data = data[::n]
+        data = np.clip(data, 0., None)
+        time = time[n//2::n]
+        time = time[:data.shape[0]]
+        signals_data.append(data)
+        signals_time.append(time)
+        if plot:
+            plt.plot(time, data, label=tag)
+            if tag == channels[15]:
+                plt.title('signals (top camera)')
+                plt.xlabel('t (s)')
+                plt.legend()
+                plt.show()
+                plt.figure(figsize=(20,12))
+            if tag == channels[31]:
+                plt.title('signals (front camera)')
+                plt.xlabel('t (s)')
+                plt.legend()
+                plt.show()
+    
+            
+    # -------------------------------------------------------------------------
+    
+    signals_data = np.array(signals_data,dtype=np.float32)
+    signals_time = np.array(signals_time,dtype=np.float32)
+    
+    print('signals_data:', signals_data.shape, signals_data.dtype)
+    print('signals_time:', signals_time.shape, signals_time.dtype)
+    
+    # -------------------------------------------------------------------------
+    
+    fname = 'signals_data.npy'
+    print('Writing:', fname)
+    np.save(fname, signals_data)
+    
+    fname = 'signals_time.npy'
+    print('Writing:', fname)
+    np.save(fname, signals_time)
+    
 
-signals_data = np.array(signals_data,dtype=np.float32)
-signals_time = np.array(signals_time,dtype=np.float32)
-
-print('signals_data:', signals_data.shape, signals_data.dtype)
-print('signals_time:', signals_time.shape, signals_time.dtype)
-
-# -------------------------------------------------------------------------
-
-fname = 'signals_data.npy'
-print('Writing:', fname)
-np.save(fname, signals_data)
-
-fname = 'signals_time.npy'
-print('Writing:', fname)
-np.save(fname, signals_time)
+if __name__=='__main__':
+    exportSignals(sys.argv[1])
 
 
 
