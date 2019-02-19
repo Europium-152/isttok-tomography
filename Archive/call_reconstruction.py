@@ -50,9 +50,9 @@ signals_time = np.load(fname)
 
 print('signals_time:', signals_time.shape, signals_time.dtype)
 
-time=18000.
-time_index,time=find_nearest(signals_time[0],time)
-f=signals_data[:,time_index]
+#time=18000.
+#time_index,time=find_nearest(signals_time[0],time)
+#f=signals_data[:,time_index]
 
 signals=[]
 times=np.arange(18000,19001,500)

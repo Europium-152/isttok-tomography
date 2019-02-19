@@ -1,4 +1,4 @@
-from __future__ import print_function
+    from __future__ import print_function
 
 import numpy as np
 import pandas as pd
@@ -40,7 +40,7 @@ print('f_detector_x:', f_detector_x)
 print('f_detector_y:', f_detector_y)
 
 # -----------------------------------------------------------------------------------------
-
+LoS_radius=85.
 coords = []
 
 for i in range(n):
@@ -53,7 +53,7 @@ for i in range(n):
     y2 = -100.
     x2 = (y2-b)/m
     line = LineString([(x0, y0), (x2, y2)])
-    circle = Point(0., 0.).buffer(100.).boundary
+    circle = Point(0., 0.).buffer(LoS_radius).boundary
     segment = line.difference(circle)[1]
     x0, y0 = segment.coords[0]
     x1, y1 = segment.coords[1]
@@ -70,7 +70,7 @@ for i in range(n):
     x2 = -100.
     y2 = m*x2+b
     line = LineString([(x0, y0), (x2, y2)])
-    circle = Point(0., 0.).buffer(100.).boundary
+    circle = Point(0., 0.).buffer(LoS_radius).boundary
     segment = line.difference(circle)[1]
     x0, y0 = segment.coords[0]
     x1, y1 = segment.coords[1]
@@ -94,7 +94,7 @@ for (i, row) in enumerate(df.itertuples()):
         color = 'orange'
     plt.plot([row.x0, row.x1], [row.y0, row.y1], color)
 
-circle = plt.Circle((0., 0.), 100., color='k', fill=False)
+circle = plt.Circle((0., 0.), LoS_radius, color='w', fill=False)
 plt.gca().add_artist(circle)
 
 plt.plot(0., 0., 'k+')
