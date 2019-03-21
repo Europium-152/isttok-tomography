@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import matplotlib
+matplotlib.use("TkAgg")
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,12 +26,14 @@ x_max = +100.
 y_min = -100.
 y_max = +100.
 
+
 def transform(x, y):
     j = int((x-x_min)/(x_max-x_min)*n_cols)
     i = int((y_max-y)/(y_max-y_min)*n_rows)
-    return (i, j)
+    return i, j
 
 # -------------------------------------------------------------------------
+
 
 x_grid = np.linspace(x_min, x_max, num=n_cols+1)
 y_grid = np.linspace(y_min, y_max, num=n_rows+1)
@@ -61,11 +65,12 @@ for row in df.itertuples():
     
 projections = np.array(projections)
 
+
 print('projections:', projections.shape, projections.dtype)
 
 # -------------------------------------------------------------------------
 
-fname = 'projections.npy'
+fname = 'projections/line-approximation.npy'
 print('Writing:', fname)
 np.save(fname, projections)
 

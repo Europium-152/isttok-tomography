@@ -1,0 +1,185 @@
+"""
+Export the real projection matrix
+"""
+from __future__ import print_function
+
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib
+matplotlib.use("TkAgg")
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import interp2d as interpolate
+
+sensors = np.arange(32)
+
+coordinates_files = [
+    "top-coordinates-sensor-1.npy",
+    "top-coordinates-sensor-2.npy",
+    "top-coordinates-sensor-3.npy",
+    "top-coordinates-sensor-4.npy",
+    "top-coordinates-sensor-5.npy",
+    "top-coordinates-sensor-6.npy",
+    "top-coordinates-sensor-7.npy",
+    "top-coordinates-sensor-8.npy",
+    "top-coordinates-sensor-9.npy",
+    "top-coordinates-sensor-10.npy",
+    "top-coordinates-sensor-11.npy",
+    "top-coordinates-sensor-12.npy",
+    "top-coordinates-sensor-13.npy",
+    "top-coordinates-sensor-14.npy",
+    "top-coordinates-sensor-15.npy",
+    "top-coordinates-sensor-16.npy",
+
+    "out-coordinates-sensor-1.npy",
+    "out-coordinates-sensor-2.npy",
+    "out-coordinates-sensor-3.npy",
+    "out-coordinates-sensor-4.npy",
+    "out-coordinates-sensor-5.npy",
+    "out-coordinates-sensor-6.npy",
+    "out-coordinates-sensor-7.npy",
+    "out-coordinates-sensor-8.npy",
+    "out-coordinates-sensor-9.npy",
+    "out-coordinates-sensor-10.npy",
+    "out-coordinates-sensor-11.npy",
+    "out-coordinates-sensor-12.npy",
+    "out-coordinates-sensor-13.npy",
+    "out-coordinates-sensor-14.npy",
+    "out-coordinates-sensor-15.npy",
+    "out-coordinates-sensor-16.npy",
+]
+
+solid_angle_files = [
+    # Top sensor first 8
+    "solid-angle-top-and-out-sensors-1-and-16.npy",
+    "solid-angle-top-and-out-sensors-2-and-15.npy",
+    "solid-angle-top-and-out-sensors-3-and-14.npy",
+    "solid-angle-top-and-out-sensors-4-and-13.npy",
+    "solid-angle-top-and-out-sensors-5-and-12.npy",
+    "solid-angle-top-and-out-sensors-6-and-11.npy",
+    "solid-angle-top-and-out-sensors-7-and-10.npy",
+    "solid-angle-top-and-out-sensors-8-and-9.npy",
+
+    # Top sensor last 8
+    "solid-angle-top-and-out-sensors-8-and-9.npy",
+    "solid-angle-top-and-out-sensors-7-and-10.npy",
+    "solid-angle-top-and-out-sensors-6-and-11.npy",
+    "solid-angle-top-and-out-sensors-5-and-12.npy",
+    "solid-angle-top-and-out-sensors-4-and-13.npy",
+    "solid-angle-top-and-out-sensors-3-and-14.npy",
+    "solid-angle-top-and-out-sensors-2-and-15.npy",
+    "solid-angle-top-and-out-sensors-1-and-16.npy",
+
+    # Outer sensor first 8
+    "solid-angle-top-and-out-sensors-1-and-16.npy",
+    "solid-angle-top-and-out-sensors-2-and-15.npy",
+    "solid-angle-top-and-out-sensors-3-and-14.npy",
+    "solid-angle-top-and-out-sensors-4-and-13.npy",
+    "solid-angle-top-and-out-sensors-5-and-12.npy",
+    "solid-angle-top-and-out-sensors-6-and-11.npy",
+    "solid-angle-top-and-out-sensors-7-and-10.npy",
+    "solid-angle-top-and-out-sensors-8-and-9.npy",
+
+    # Outer sensor last 8
+    "solid-angle-top-and-out-sensors-8-and-9.npy",
+    "solid-angle-top-and-out-sensors-7-and-10.npy",
+    "solid-angle-top-and-out-sensors-6-and-11.npy",
+    "solid-angle-top-and-out-sensors-5-and-12.npy",
+    "solid-angle-top-and-out-sensors-4-and-13.npy",
+    "solid-angle-top-and-out-sensors-3-and-14.npy",
+    "solid-angle-top-and-out-sensors-2-and-15.npy",
+    "solid-angle-top-and-out-sensors-1-and-16.npy",
+
+]
+
+directory = "D:/uni/tomography-calibration/solid-angles-values/"
+
+sensor_number = 17 - 1
+
+all_projections = []
+
+for sensor_number in range(32):
+
+    try:
+        projection_function = np.load("real-projection-functions/sensor%d.npy" % sensor_number)[()]
+        print("Found interpolation function for sensor %d" % sensor_number)
+
+    except IOError:
+
+        print("Interpolation function for sensor %d not found" % sensor_number)
+        # Solid angle values
+        sangles = np.load(directory + solid_angle_files[sensor_number])
+        # Corresponding coordinates
+        coords = np.load(directory + coordinates_files[sensor_number])
+        # Resize sangles because it has a mistake
+        sangles = sangles[0:len(coords)]
+
+        # The solid angle are not stored in any particular order
+        # and are only calculated for non-zero values
+        # We need to order them properly and also sum them along ZZ
+
+        proj_values = []  # Ordered solid angle values summed along zz
+        summed_proj = []  # Summed along yy (line approximation)
+
+
+
+        # Same grid as used in the computation
+        gridx = np.arange(-100, 101)
+        gridy = np.arange(-100, 101)
+
+        for y in gridy:
+            proj_values.append([])
+            for x in gridx:
+                proj_values[-1].append(
+                    np.sum(sangles[(np.abs(coords[:, 0] - x) < 0.0001) & (np.abs(coords[:, 1] - y) < 0.0001)]))
+
+        summed_proj = np.array(proj_values)
+
+        summed_proj = summed_proj.T
+        for column in summed_proj:
+            column[np.argmax(column)] = np.sum(column)
+            # print(np.sum(column))
+        summed_proj = summed_proj.T
+
+        # plt.figure()
+        # plt.pcolormesh(plot_gridx, plot_gridy, np.array(proj_values), cmap="hot")
+        # plt.colorbar()
+        # plt.show()
+        #
+        # plt.figure()
+        # plt.pcolormesh(plot_gridx, plot_gridy, summed_proj)
+        # plt.colorbar()
+        # plt.show()
+
+        # Interpolation class with projection function
+        projection_function = interpolate(gridx, gridy, np.array(proj_values))
+        np.save("real-projection-functions/sensor%d.npy" % sensor_number, projection_function)
+
+    n_rows = 45  # y-axis pixel resolution
+    n_cols = 45  # x-axis pixel resolution
+
+    x_min = -100.
+    x_max = +100.
+
+    y_min = -100.
+    y_max = +100.
+
+    x_grid = np.linspace(x_min, x_max, num=n_cols)
+    y_grid = np.linspace(y_max, y_min, num=n_rows)
+
+    projections = []
+
+    for y in y_grid:
+        projections.append([])
+        for x in x_grid:
+            projections[-1].append(projection_function(x, y)[0])
+            # TODO: Use average value inside the grid instead of value at the center
+
+    # plt.figure()
+    # plt.imshow(projections)
+
+    all_projections.append(projections)
+
+all_projections = np.array(all_projections)
+np.save("projections/complex-view-cone.npy", all_projections)
+
+
