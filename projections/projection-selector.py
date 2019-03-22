@@ -3,11 +3,15 @@ import shutil
 import os
 import sys
 from distutils.util import strtobool
+import numpy as np
 
 valid_projections = [
     "line-approximation.npy",
     "complex-view-cone.npy"
 ]
+
+# Module directory. Use to fetch the projection files
+this_directory = os.path.dirname(__file__) + '\\'
 
 
 def select_projection(file_to_copy):
@@ -22,6 +26,14 @@ def select_projection(file_to_copy):
     else:
         shutil.copy(file_to_copy, "../projections.npy")
         print("Done")
+
+
+def load_projection(projection_file_name):
+
+    try:
+        return np.load(this_directory + projection_file_name)
+    except IOError:
+        raise IOError("'%s' is not a valid projection. Select one from:\n" + str(valid_projections))
 
 
 if __name__ == "__main__":
