@@ -16,7 +16,7 @@ plt.rcParams.update({'font.size': 18})
 
 class MFI:
 
-    def __init__(self, projections, width=100., height=100., mask_radius=85.):
+    def __init__(self, projections, width=200., height=200., mask_radius=85.):
         """
         Parameters
         ----------
@@ -41,8 +41,8 @@ class MFI:
 
         n_rows = self._projections.shape[1]
         n_cols = self._projections.shape[2]
-        res_x = width / n_cols
-        res_y = height / n_rows  # x,y (mm)
+        res_x = width / float(n_cols)
+        res_y = height / float(n_rows)  # x,y (mm)
 
         # x and y arrays for plotting purposes. Coordinates represent the top left corner of each pixel
         self.x_array_plot = (np.arange(n_cols + 1) - n_cols / 2.) * res_x
@@ -183,7 +183,6 @@ class MFI:
                 print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
                 g_old = np.array(g_new)  # Explicitly copy because python will not
-                # TODO: Swapping instead of copying
 
                 if error < stop_criteria:
                     print("Minimum Fisher converged after %d iterations." % i)
@@ -195,12 +194,6 @@ class MFI:
 
             g_list.append(g_new.reshape((n_rows, n_cols)))
 
-        # Return correctly either a single or multiple reconstructions -------------
-        if len(_signals.shape) == 1:
-            return g_list[0], first_g.reshape((n_rows, n_cols))
-
-        elif len(_signals.shape) == 2:
             return g_list, first_g.reshape((n_rows, n_cols))
-
 
 
