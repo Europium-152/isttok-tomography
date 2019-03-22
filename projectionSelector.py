@@ -11,7 +11,7 @@ valid_projections = [
 ]
 
 # Module directory. Use to fetch the projection files
-this_directory = os.path.dirname(__file__) + '\\'
+this_directory = os.path.dirname(__file__) + '\\projections\\'
 
 
 def select_projection(file_to_copy):
@@ -33,7 +33,8 @@ def load_projection(projection_file_name):
     try:
         return np.load(this_directory + projection_file_name)
     except IOError:
-        raise IOError("'%s' is not a valid projection. Select one from:\n" + str(valid_projections))
+        raise IOError("'%s' is not a valid projection. Select one from:\n" % (this_directory + projection_file_name)
+                      + str(valid_projections))
 
 
 if __name__ == "__main__":
