@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 
 import numpy as np
-from exportSignals import exportSignals
+from exportSignals import export_signals
 import matplotlib.pyplot as plt
 from calibrationShots import shots, keys, times
 from skimage.draw import ellipse
@@ -63,7 +63,7 @@ def simulate_signal(phantom_number, plot=True):
     # Obtain the actual signals from phantom measurements and vector f -------------------------------------------------
 
     key = keys[phantom_number]
-    signals_time, signals_data = exportSignals(key)
+    signals_time, signals_data = export_signals(key)
 
     print('signals_data:', signals_data.shape, signals_data.dtype)
     print('signals_time:', signals_time.shape, signals_time.dtype)
