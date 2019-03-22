@@ -4,7 +4,7 @@ Created on Wed Dec 19 13:13:30 2018
 
 @author: danie
 """
-from exportSignals import exportSignals
+from exportSignals import export_signals
 from calibrationShots import shots, keys, times
 from callReconstruction import reconstruction
 import matplotlib.pyplot as plt
@@ -17,7 +17,7 @@ from scipy.optimize import minimize_scalar
 #    
 #    # Select shot for calibration and export signals into file
 #    shot=shots[key]
-#    exportSignals(shot)
+#    export_signals(shot)
 #    
 #    # Perform reconstruction for the signals  
 #    (first_g,g_list,x_array,y_array)=reconstruction(time)
@@ -34,7 +34,7 @@ for phantom_number in np.arange(1):
     time = [times[key]]
     # Select shot for calibration and export signals into file
     shot = shots[key]
-    exportSignals(key)
+    export_signals(key)
 
     # Load phantom model for comparison
     phantom_model = np.load("phantoms/Phantom-%d.npy" % phantom_number)
