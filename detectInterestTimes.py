@@ -200,4 +200,4 @@ for tag, time, data in zip(channels, signals_time, signals_data):
 #
 #
 # if __name__=='__main__':
-#    exportSignals(sys.argv[1],sys.argv[2])
+#    export_signals(sys.argv[1],sys.argv[2])
