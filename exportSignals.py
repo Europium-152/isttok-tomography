@@ -54,12 +54,12 @@ channels = [
         ]
 
 
-def exportSignals(shot_id, plot=False):
+def export_signals(shot_id, plot=False):
     """Prepare tomography signals for reconstruction. Work only with data from the discharge lamp experiments.
 
-    The reconstruction API relies on signals stored in .npy files. The signal preparation pipe-line works as follows.
+    The reconstruction API relies on signals stored in .npy files. The signal preparation pipe-line follows.
     - Load the data from the ISTTOK data base or from the cache folder
-    - Apply Signal processing techniques to the loaded data e.g. (detrending, baseline removal)
+    - Apply Signal processing techniques to the loaded data e.g. (detrending, baseline removal, filtering)
     - Save the signals to the target files "signals_time.npy" and "signals_data.npy"
     This files serve as input to the reconstruction algorithm
 
@@ -138,7 +138,7 @@ def exportSignals(shot_id, plot=False):
     
 
 if __name__ == '__main__':
-    exportSignals(sys.argv[1], True)
+    export_signals(sys.argv[1], True)
 
 
 
