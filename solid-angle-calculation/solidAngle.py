@@ -6,7 +6,7 @@ import numpy as np
 import time
 
 
-# PIXEL COORDINATES (x,z)
+target_directory = "solid-angles-values-res-0mm5/"
 
 
 class Rotation:
@@ -40,12 +40,12 @@ rotate_bot = Rotation(7.5, [5. + 102 * np.cos(np.radians(-82.5)), 102.0 * np.sin
 
 # xx bounding coordinates of the sensors on the pinhole frame. Starting from the 1st
 xMinMax = [
-    [6.75, 7.5],
-    [5.8, 6.55],
-    [4.85, 5.6],
-    [3.9, 4.65],
-    [2.95, 3.7],
-    [2.0, 2.75],
+    # [6.75, 7.5],
+    # [5.8, 6.55],
+    # [4.85, 5.6],
+    # [3.9, 4.65],
+    # [2.95, 3.7],
+    # [2.0, 2.75],
     [1.05, 1.8],
     [0.1, 0.85],
     #        [-0.85,-0.1],
@@ -58,7 +58,16 @@ xMinMax = [
     #        [-7.5,-6.75]
 ]
 
-sensors_index = [1, 2, 3, 4, 5, 6, 7, 8]
+sensors_index = [
+    # 1,
+    # 2,
+    # 3,
+    # 4,
+    # 5,
+    # 6,
+    7,
+    8
+]
 
 # zz bounding coordinates for the sensors
 zMin = -2.025
@@ -73,15 +82,15 @@ radius = 0.4
 # Grid parameters for computation
 Xstart = -100
 Xend = 100
-Xstep = 1
+Xstep = 0.5
 
 Ystart = 1.
 Yend = 204.
-Ystep = 1
+Ystep = 0.5
 
 Zstart = 0.
 Zend = 100.
-Zstep = 1
+Zstep = 0.5
 
 Xpoints = int((Xend - Xstart) / Xstep) + 1
 Ypoints = int((Yend - Ystart) / Ystep) + 1
@@ -158,6 +167,7 @@ for px, sensor in zip(xMinMax, sensors_index):
             startZ = z0 - y0 * (zMin - z0) / (h - y0)
             endZ = z0 - y0 * (zMax - z0) / (h - y0)
 
+
             # Integration is done on the xz plane
             # For each value of x, calculate the z boundaries
 
@@ -169,11 +179,11 @@ for px, sensor in zip(xMinMax, sensors_index):
 
                 # If the rectangle ends before the pinhole begins of vice-versa
                 # Return zero for the integral to also yield zero
-                if (low_circle > endZ or up_circle < startZ):
+                if (low_circle > endZ) or (up_circle < startZ):
                     return 0.0
 
                 # Otherwise, the lower limit for integration is the maximum between
-                # the begining of the pinhole and the rectangle
+                # the beginning of the pinhole and the rectangle
                 else:
                     return max((startZ, low_circle))
 
@@ -214,18 +224,18 @@ for px, sensor in zip(xMinMax, sensors_index):
             else:
                 break
 
-    np.save("top-coordinates-sensor-%d.npy" % sensor, top[0:index])
-    np.save(("top-coordinates-sensor-%d.npy" % (17 - sensor)), top_mirror[0:index])
+    np.save(target_directory + "top-coordinates-sensor-%d.npy" % sensor, top[0:index])
+    np.save(target_directory + "top-coordinates-sensor-%d.npy" % (17 - sensor), top_mirror[0:index])
 
-    np.save("out-coordinates-sensor-%d.npy" % sensor, out[0:index])
-    np.save("out-coordinates-sensor-%d.npy" % (17 - sensor), out_mirror[0:index])
+    np.save(target_directory + "out-coordinates-sensor-%d.npy" % sensor, out[0:index])
+    np.save(target_directory + "out-coordinates-sensor-%d.npy" % (17 - sensor), out_mirror[0:index])
 
-    np.save("solid-angle-top-and-out-sensors-%d-and-%d.npy" % (sensor, 17 - sensor), solid_angles)
-    np.save("error-sa-top-and-out-sensors-%d-and-%d.npy" % (sensor, 17 - sensor), solid_angles_errors)
+    np.save(target_directory + "solid-angle-top-and-out-sensors-%d-and-%d.npy" % (sensor, 17 - sensor), solid_angles)
+    np.save(target_directory + "error-sa-top-and-out-sensors-%d-and-%d.npy" % (sensor, 17 - sensor), solid_angles_errors)
 
 t1 = time.time()
 
 total = t1 - t0
 
 print("computation time: %f\ncalculations: %d\ntime per calculation: %f" % (
-total, Xpoints * Ypoints * Zpoints, total / (Xpoints * Ypoints * Zpoints)))
+    total, Xpoints * Ypoints * Zpoints, total / (Xpoints * Ypoints * Zpoints)))
