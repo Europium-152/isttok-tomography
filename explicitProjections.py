@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
 
-directory = "D:/uni/tomography-calibration/solid-angles-values/"
+directory = "D:/uni/tomography-calibration/solid-angle-calculation/"
 
-sangles = np.load(directory + "solid-angle-top-and-out-sensors-8-and-9.npy")
-coords = np.load(directory + "out-coordinates-sensor-8.npy")
+sangles = np.load(directory + "solid-angle-top-and-out-sensors-1-and-16.npy")
+coords = np.load(directory + "out-coordinates-sensor-1.npy")
 
 sangles = sangles[0:len(coords)]
 
@@ -23,8 +23,8 @@ sangles = sangles[0:len(coords)]
 proj_values = []
 summed_proj = []
 
-gridx = np.arange(-100, 101)
-gridy = np.arange(-80, 81)
+gridx = np.arange(-100, 100.5, 0.5)
+gridy = np.arange(-80, 80.5, 0.5)
 
 for x in gridx:
     proj_values.append([])
@@ -42,17 +42,21 @@ for column in summed_proj:
     print(np.sum(column))
 
 
-plot_gridx = np.arange(-100.5, 101., 1.)
-plot_gridy = np.arange(-80.5, 81., 1.)
+plot_gridx = np.arange(-100.25, 100.5, 0.5)
+plot_gridy = np.arange(-80.25, 80.5, 0.5)
 
 plt.figure()
 plt.pcolormesh(plot_gridx, plot_gridy, np.array(proj_values).T)
 plt.colorbar()
+plt.xlabel("x (mm)")
+plt.ylabel("y (mm)")
 plt.show()
 
 plt.figure()
 plt.pcolormesh(plot_gridx, plot_gridy, summed_proj.T)
 plt.colorbar()
+plt.xlabel("x (mm)")
+plt.ylabel("y (mm)")
 plt.show()
 # gridx,gridy,gridz=np.mgrid[-100:101:20,0:200:5,0:70:1]
 #
