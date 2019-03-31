@@ -41,10 +41,12 @@ def signal_simulation_histogram(phantom):
 
     top.bar(np.arange(1, 17), height=f_simulated[:16], width=0.3, align='edge', label='simulated')
     top.bar(np.arange(1, 17) + 0.3, height=f_measured[:16], width=0.3, align='edge', label='real')
+    top.set_ylim(0, 4)
 
     out.barh(np.arange(1, 17), width=f_simulated[16:], height=0.3, align='edge', label='simulated')
     out.barh(np.arange(1, 17) + 0.3, width=f_measured[16:], height=0.3, align='edge', label='real')
     out.invert_yaxis()
+    out.set_xlim(0, 4)
 
     plt.show()
 
