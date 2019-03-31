@@ -3,14 +3,12 @@ Export the real projection matrix
 """
 from __future__ import print_function
 
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp2d as interpolate
+import matplotlib.pyplot as plt
+import globalParameters as gp
 
-sensors = np.arange(32)
+sensors = np.arange(30, 32)
 
 coordinates_files = [
     "top-coordinates-sensor-1.npy",
@@ -91,25 +89,28 @@ solid_angle_files = [
 
 ]
 
-directory = "D:/uni/tomography-calibration/solid-angles-values/"
+resolution = "0mm5"  # 0.5 millimeter resolution
+# resolution = "1mm0"  # 1.0 millimeter resolution
 
-sensor_number = 17 - 1
+solid_angles_dir = "D:/uni/tomography-calibration/solid-angles-values-res-" + resolution + "/"
+projection_functions_dir = "D:/uni/tomography-calibration/real-projection-functions-" + resolution + "/"
+projection_matrices_dir = "D:/uni/tomography-calibration/projections/"
 
 all_projections = []
 
-for sensor_number in range(32):
+for sensor_number in sensors:
 
     try:
-        projection_function = np.load("real-projection-functions/sensor%d.npy" % sensor_number)[()]
+        projection_function = np.load(projection_functions_dir + "sensor%d.npy" % sensor_number)[()]
         print("Found interpolation function for sensor %d" % sensor_number)
 
     except IOError:
 
         print("Interpolation function for sensor %d not found" % sensor_number)
         # Solid angle values
-        sangles = np.load(directory + solid_angle_files[sensor_number])
+        sangles = np.load(solid_angles_dir + solid_angle_files[sensor_number])
         # Corresponding coordinates
-        coords = np.load(directory + coordinates_files[sensor_number])
+        coords = np.load(solid_angles_dir + coordinates_files[sensor_number])
         # Resize sangles because it has a mistake
         sangles = sangles[0:len(coords)]
 
@@ -117,29 +118,33 @@ for sensor_number in range(32):
         # and are only calculated for non-zero values
         # We need to order them properly and also sum them along ZZ
 
-        proj_values = []  # Ordered solid angle values summed along zz
-        summed_proj = []  # Summed along yy (line approximation)
-
-
+        # proj_values = []  # Ordered solid angle values summed along zz
+        # summed_proj = []  # Summed along yy (line approximation)
 
         # Same grid as used in the computation
-        gridx = np.arange(-100, 101)
-        gridy = np.arange(-100, 101)
+        gridx = np.arange(-100, 100.5, 0.5)
+        gridy = np.arange(-100, 100.5, 0.5)
 
-        for y in gridy:
-            proj_values.append([])
-            for x in gridx:
-                proj_values[-1].append(
-                    np.sum(sangles[(np.abs(coords[:, 0] - x) < 0.0001) & (np.abs(coords[:, 1] - y) < 0.0001)]))
+        # Rounding coordinates to um
+        coords = np.round(coords * 1000)
+        gridx = np.round(gridx * 1000)
+        gridy = np.round(gridy * 1000)
 
-        summed_proj = np.array(proj_values)
+        proj_values = np.zeros((len(gridy), len(gridx)))
 
-        summed_proj = summed_proj.T
-        for column in summed_proj:
-            column[np.argmax(column)] = np.sum(column)
-            # print(np.sum(column))
-        summed_proj = summed_proj.T
+        for y, i in zip(gridy, range(len(gridy))):
+            for x, j in zip(gridx, range(len(gridx))):
+                proj_values[i, j] = \
+                    np.sum(sangles[(coords[:, 0] == x) & (coords[:, 1] == y)])
 
+        # summed_proj = np.array(proj_values)
+        #
+        # summed_proj = summed_proj.T
+        # for column in summed_proj:
+        #     column[np.argmax(column)] = np.sum(column)
+        #     # print(np.sum(column))
+        # summed_proj = summed_proj.T
+        #
         # plt.figure()
         # plt.pcolormesh(plot_gridx, plot_gridy, np.array(proj_values), cmap="hot")
         # plt.colorbar()
@@ -151,35 +156,34 @@ for sensor_number in range(32):
         # plt.show()
 
         # Interpolation class with projection function
-        projection_function = interpolate(gridx, gridy, np.array(proj_values))
-        np.save("real-projection-functions/sensor%d.npy" % sensor_number, projection_function)
+        projection_function = interpolate(gridx*0.001, gridy*0.001, proj_values*0.5)
+        np.save(projection_functions_dir + "sensor%d.npy" % sensor_number, projection_function)
 
-    n_rows = 45  # y-axis pixel resolution
-    n_cols = 45  # x-axis pixel resolution
-
-    x_min = -100.
-    x_max = +100.
-
-    y_min = -100.
-    y_max = +100.
-
-    x_grid = np.linspace(x_min, x_max, num=n_cols)
-    y_grid = np.linspace(y_max, y_min, num=n_rows)
-
-    projections = []
-
-    for y in y_grid:
-        projections.append([])
-        for x in x_grid:
-            projections[-1].append(projection_function(x, y)[0])
-            # TODO: Use average value inside the grid instead of value at the center
-
+    # n_rows = 128  # y-axis pixel resolution
+    # n_cols = 128  # x-axis pixel resolution
+    #
+    # x_min = -100.
+    # x_max = +100.
+    #
+    # y_min = -100.
+    # y_max = +100.
+    #
+    # x_grid = np.linspace(x_min, x_max, num=n_cols)
+    # y_grid = np.linspace(y_max, y_min, num=n_rows)
+    #
+    # projections = []
+    #
+    # for y in y_grid:
+    #     projections.append([])
+    #     for x in x_grid:
+    #         projections[-1].append(projection_function(x, y)[0])
+    #         # TODO: Use average value inside the grid instead of value at the center
+    #
     # plt.figure()
     # plt.imshow(projections)
-
-    all_projections.append(projections)
-
-all_projections = np.array(all_projections)
-np.save("projections/complex-view-cone.npy", all_projections)
-
-
+    # plt.colorbar()
+#
+#     all_projections.append(projections)
+#
+# all_projections = np.array(all_projections)
+# np.save("projections/complex-view-cone-128.npy", all_projections)
