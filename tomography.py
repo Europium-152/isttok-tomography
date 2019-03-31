@@ -8,6 +8,7 @@ from scipy.ndimage.measurements import center_of_mass
 from numpy import unravel_index
 import scipy
 from core import mfi
+from scipy.optimize import minimize_scalar
 
 plt.close("all")
 
@@ -109,7 +110,7 @@ class MFI:
                 or a list of such arrays
             stop_criteria: float
                 average different between iterations to admit convergence as a percentage.
-            alpha_1, alpha_2, alpha_3: float
+            alpha_1, alpha_2, alpha_3, alpha_4: float
                 regularization weights. Horizontal derivative. Vertical derivative. Outside Norm. Inside Norm.
             max_iterations: int
                 Maximum number of iterations before algorithm gives up
@@ -178,7 +179,7 @@ class MFI:
                 # plt.imshow(g_new.reshape((n_rows, n_cols)))
 
                 # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
-                error = np.sum(np.abs(g_new - g_old)) / np.sum(np.abs(g_new))
+                error = np.sum(np.abs(g_new - g_old)) / np.sum(np.abs(first_g))
 
                 print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
@@ -196,4 +197,57 @@ class MFI:
 
             return g_list, first_g.reshape((n_rows, n_cols))
 
+    def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, max_iterations):
+        """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
+        mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
 
+        input:
+            signals: array or list of arrays
+                should be an array of single measurements from each sensor ordered like in "projections",
+                or a list of such arrays
+            stop_criteria: float
+                average different between iterations to admit convergence as a percentage.
+            comparison: callable
+                Comparison function. This function should take one argument which is a 2D array tomogram,
+                and output a scalar that reflects the quality of the fit. This function will be minimized with respect
+                to the regularization constant.
+                TODO: Implement the chi square option and use it as default
+            alpha_3, alpha_4: float
+                regularization weights: 3 - Outside Norm. 4 - Inside Norm.
+            max_iterations: int
+                Maximum number of iterations before algorithm gives up
+
+        output:
+            g_list: array or list of arrays
+                Reconstructed g vector, or multiple g vectors if multiple signals were provided
+            first_g: array
+                First iteration g vector. This is the result of the simple Tikhonov regularization
+        """
+
+        def reconstruction_wrapper(alpha_iterable):
+            # Call reconstruction routine --------
+            (g_list, _) = self.reconstruction(signals,
+                                              stop_criteria=stop_criteria,
+                                              alpha_1=alpha_iterable,
+                                              alpha_2=alpha_iterable,
+                                              alpha_3=alpha_3,
+                                              alpha_4=alpha_4,
+                                              max_iterations=max_iterations)
+
+            # Compare with the phantom model -----
+            # return -correlation(g_list[-1].flatten(), phantom_model)[0]
+            return comparison(g_list[-1])
+
+        result = minimize_scalar(reconstruction_wrapper, bracket=(0.0001, 0.001), tol=0.01, options={'maxiter': 8})
+
+        g_list, first_g = self.reconstruction(signals,
+                                              stop_criteria=stop_criteria,
+                                              alpha_1=result.x,
+                                              alpha_2=result.x,
+                                              alpha_3=alpha_3,
+                                              alpha_4=alpha_4,
+                                              max_iterations=max_iterations)
+
+        print("Optimal regularization constant: %f" % result.x)
+
+        return g_list, first_g, result.x
