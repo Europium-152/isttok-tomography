@@ -1,7 +1,7 @@
 """
 Analyse the explicit projections calculated
 """
-from __future__ import print_function
+
 
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib

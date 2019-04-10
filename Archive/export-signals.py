@@ -99,17 +99,17 @@ def exportSignals(shot_id,plot=False):
     signals_data = np.array(signals_data,dtype=np.float32)
     signals_time = np.array(signals_time,dtype=np.float32)
     
-    print('signals_data:', signals_data.shape, signals_data.dtype)
-    print('signals_time:', signals_time.shape, signals_time.dtype)
+    print(('signals_data:', signals_data.shape, signals_data.dtype))
+    print(('signals_time:', signals_time.shape, signals_time.dtype))
     
     # -------------------------------------------------------------------------
     
     fname = 'signals_data.npy'
-    print('Writing:', fname)
+    print(('Writing:', fname))
     np.save(fname, signals_data)
     
     fname = 'signals_time.npy'
-    print('Writing:', fname)
+    print(('Writing:', fname))
     np.save(fname, signals_time)
     
 

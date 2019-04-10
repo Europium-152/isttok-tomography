@@ -125,9 +125,9 @@ y_coord = coords[1].flatten()
 # xy = np.mgrid[Xstart:(Xend+Xstep):Xstep,Ystart:(Yend+Ystep):Ystep].reshape(2,-1).T
 
 
-print("Solid angles over a matrix: (%d, %d, %d)" % (Xpoints, Ypoints, Zpoints))
+print(("Solid angles over a matrix: (%d, %d, %d)" % (Xpoints, Ypoints, Zpoints)))
 
-print("Total points: %d" % (Xpoints * Ypoints * Zpoints))
+print(("Total points: %d" % (Xpoints * Ypoints * Zpoints)))
 
 px = xMinMax[0]
 
@@ -237,5 +237,5 @@ t1 = time.time()
 
 total = t1 - t0
 
-print("computation time: %f\ncalculations: %d\ntime per calculation: %f" % (
-    total, Xpoints * Ypoints * Zpoints, total / (Xpoints * Ypoints * Zpoints)))
+print(("computation time: %f\ncalculations: %d\ntime per calculation: %f" % (
+    total, Xpoints * Ypoints * Zpoints, total / (Xpoints * Ypoints * Zpoints))))

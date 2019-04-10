@@ -126,17 +126,17 @@ def export_signals(shot_id, plot=False):
     signals_data = np.array(signals_data, dtype=np.float32)
     signals_time = np.array(signals_time, dtype=np.float32)
 
-    print('signals_data:', signals_data.shape, signals_data.dtype)
-    print('signals_time:', signals_time.shape, signals_time.dtype)
+    print(('signals_data:', signals_data.shape, signals_data.dtype))
+    print(('signals_time:', signals_time.shape, signals_time.dtype))
 
     # -------------------------------------------------------------------------
 
     fname = 'signals_data.npy'
-    print('Writing:', fname)
+    print(('Writing:', fname))
     np.save(fname, signals_data)
 
     fname = 'signals_time.npy'
-    print('Writing:', fname)
+    print(('Writing:', fname))
     np.save(fname, signals_time)
 
     return signals_time, signals_data
@@ -171,7 +171,7 @@ def prepare_signals(shot_id, plot=False):
     shot = shots[shot_id]
 
     if plot:
-        plt.figure(figsize=(20, 12))
+        plt.figure(figsize=(17, 8))
 
     for tag in channels:
 
@@ -181,7 +181,137 @@ def prepare_signals(shot_id, plot=False):
         data = x.values - detrend
         time = np.array(x.times, dtype=np.float32)
 
-        n = 10
+        n = 1
+        data = np.cumsum(data, axis=0)
+        data = (data[n:] - data[:-n]) / n
+        data = data[::n]
+        data = np.clip(data, 0., None)
+        time = time[n // 2::n]
+        time = time[:data.shape[0]]
+        signals_data.append(data)
+
+        try:
+            if not np.allclose(signals_time, time, 0.0, 1.e-8):
+                raise ValueError("tomography signals have different time axis")
+        except NameError:
+            signals_time = time
+
+        if plot:
+            plt.plot(time, data, label=tag)
+            if tag == channels[15]:
+                plt.title('signals (top camera)')
+                plt.xlabel('t (s)')
+                plt.legend()
+                plt.figure(figsize=(17, 8))
+            if tag == channels[31]:
+                plt.title('signals (front camera)')
+                plt.xlabel('t (s)')
+                plt.legend()
+            plt.show()
+
+    # -------------------------------------------------------------------------
+
+    signals_data = np.array(signals_data, dtype=np.float32).T
+
+    print(('signals_data:', signals_data.shape, signals_data.dtype))
+    print(('signals_time:', signals_time.shape, signals_time.dtype))
+
+    # -------------------------------------------------------------------------
+
+    return signals_time, signals_data
+
+
+def prepare_plasma_signals(shot, plot=False):
+    """Prepare tomography signals for reconstruction. Works only on actual data starting from shot 44880
+
+    - Load the data from the ISTTOK data base or from the cache folder
+    - Apply Signal processing techniques to the loaded data e.g. (detrending, baseline removal, filtering)
+    - Return a time array with length T and a data array T x 32.
+    The data array can be directly served to the reconstruction classes
+
+    Parameters
+    ----------
+    shot: int
+        Shot number.
+    plot: Bool, optional
+        Show plots of the loaded data after processing
+
+    Returns
+    -------
+    signals_time: 1D array
+        Time array for the data of each tomography sensor
+    signals_data: N x 32 ND-array
+        Data from the sensors. Every row corresponds to a time value in `signals_time`.
+        Each column corresponds to one sensor.
+    """
+
+    tags = [
+        'top_04',
+        'top_05',
+        'top_06',
+        'top_07',
+        'top_08',
+        'top_09',
+        'top_10',
+        'top_11',
+        'top_12',
+        'top_13',
+        'top_14',
+        'top_15',
+        'top_16',
+        'top_17',
+        'top_18',
+        'top_19',
+
+        'out_04',
+        'out_05',
+        'out_06',
+        'out_07',
+        'out_08',
+        'out_09',
+        'out_10',
+        'out_11',
+        'out_12',
+        'out_13',
+        'out_14',
+        'out_15',
+        'out_16',
+        'out_17',
+        'out_18',
+        'out_19',
+
+        'bot_04',
+        'bot_05',
+        'bot_06',
+        'bot_07',
+        'bot_08',
+        'bot_09',
+        'bot_10',
+        'bot_11',
+        'bot_12',
+        'bot_13',
+        'bot_14',
+        'bot_15',
+        'bot_16',
+        'bot_17',
+        'bot_18',
+        'bot_19',
+    ]
+
+    signals_data = []
+
+    if plot:
+        plt.figure(figsize=(20, 12))
+
+    for tag in tags:
+
+        x = ISTTOKSignal(shot, tag=tag, uid=False, time_scale=1e-6,
+                         cache_dir='D:/uni/daniel-tomografia/local/shot-cache/')
+        detrend = baseline.baseline(x, deg=1)
+        data = x.values - detrend
+        time = np.array(x.times, dtype=np.float32)
+
+        n = 1
         data = np.cumsum(data, axis=0)
         data = (data[n:] - data[:-n]) / n
         data = data[::n]
@@ -213,9 +343,10 @@ def prepare_signals(shot_id, plot=False):
 
     signals_data = np.array(signals_data, dtype=np.float32).T
 
-    print('signals_data:', signals_data.shape, signals_data.dtype)
-    print('signals_time:', signals_time.shape, signals_time.dtype)
+    print(('signals_data:', signals_data.shape, signals_data.dtype))
+    print(('signals_time:', signals_time.shape, signals_time.dtype))
 
     # -------------------------------------------------------------------------
 
     return signals_time, signals_data
+

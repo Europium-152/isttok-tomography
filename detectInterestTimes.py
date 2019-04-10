@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 
 import sys
 
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import shift
 from scipy.optimize import curve_fit
 import numpy as np
-from calibrationShots import shots
+from .calibrationShots import shots
 
 plt.close("all")
 

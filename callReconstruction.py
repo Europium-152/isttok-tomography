@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +7,7 @@ import sys
 from scipy.ndimage.measurements import center_of_mass
 from numpy import unravel_index
 import scipy
-from core import mfi
+from .core import mfi
 
 plt.close("all")
 

@@ -1,9 +1,9 @@
 """
 Create an emissivity Profile for the experimental phantoms
 """
-from __future__ import print_function
 
-from calibrationShots import keys
+
+from .calibrationShots import keys
 import numpy as np
 from scipy.integrate import dblquad
 import matplotlib.pyplot as plt

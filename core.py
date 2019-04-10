@@ -58,8 +58,8 @@ def mfi(signals, projections, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4,
     Dh = np.eye(n_rows * n_cols) - np.roll(np.eye(n_rows * n_cols), 1, axis=1)
     Dv = np.eye(n_rows * n_cols) - np.roll(np.eye(n_rows * n_cols), n_cols, axis=1)
 
-    print('Dh:', Dh.shape, Dh.dtype)
-    print('Dv:', Dv.shape, Dv.dtype)
+    print(('Dh:', Dh.shape, Dh.dtype))
+    print(('Dv:', Dv.shape, Dv.dtype))
 
     # Norm matrix --------------------------------------------------------------
 
@@ -67,7 +67,7 @@ def mfi(signals, projections, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4,
     Ii = np.eye(n_rows*n_cols) * mask_positive.flatten()
     # Io = np.eye(n_rows * n_cols)
 
-    print('Io:', Io.shape, Io.dtype)
+    print(('Io:', Io.shape, Io.dtype))
 
     # Regularization parameters ------------------------------------------------
 
@@ -140,17 +140,17 @@ def mfi(signals, projections, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4,
             # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
             error = np.sum(np.abs(g_new - g_old)) / np.sum(np.abs(g_new))
 
-            print ("Iteration %d changed by %.4f%%" % (i, error*100.))
+            print(("Iteration %d changed by %.4f%%" % (i, error*100.)))
 
             g_old = np.array(g_new)  # Explicitly copy because python will not
             # TODO: Swapping instead of copying
 
             if error < stop_criteria:
-                print ("Minimum Fisher converged after %d iterations." % i)
+                print(("Minimum Fisher converged after %d iterations." % i))
                 break
 
             if i > max_iterations:
-                print ("WARNING: Minimum Fisher did not converge after %d iterations." % i)
+                print(("WARNING: Minimum Fisher did not converge after %d iterations." % i))
                 break
 
         g_list.append(g_new.reshape((n_rows, n_cols)))
