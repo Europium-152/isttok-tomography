@@ -4,9 +4,9 @@ Created on Wed Dec 19 13:13:30 2018
 
 @author: danie
 """
-from exportSignals import export_signals
-from calibrationShots import shots, keys, times
-from callReconstruction import reconstruction
+from .exportSignals import export_signals
+from .calibrationShots import shots, keys, times
+from .callReconstruction import reconstruction
 import matplotlib.pyplot as plt
 from scipy.ndimage.measurements import center_of_mass
 import numpy as np
@@ -63,7 +63,7 @@ for phantom_number in np.arange(1):
     # plt.figure()
     # plt.plot(alphas, corr)
 
-    # Minimization of alpha ------------------------------------------------------------------------------------------------
+    # Minimization of alpha --------------------------------------------------------------------------------------------
 
 
     def reconstruction_wrapper(alpha_1):
@@ -116,7 +116,7 @@ for phantom_number in np.arange(1):
     for G in g_list:
 
         centroid = center_of_mass(G)
-        print ('centroid index : (%.2f, %.2f)' % (centroid[1], centroid[0]))
+        print(('centroid index : (%.2f, %.2f)' % (centroid[1], centroid[0])))
         center_y = n_rows * res[1]/2. - centroid[0] * res[1]
         center_x = -n_cols * res[0]/2. + centroid[1] * res[0]
 
@@ -125,9 +125,9 @@ for phantom_number in np.arange(1):
         max_y = n_rows * res[1]/2. - maximum[0] * res[1] - res[1]/2.
         max_x = -n_cols * res[0]/2. + maximum[1] * res[0] + res[1]/2.
 
-        print ('centroid coords: (%.2f, %.2f)' % (center_x, center_y))
+        print(('centroid coords: (%.2f, %.2f)' % (center_x, center_y)))
 
-        print('maximum coords: (%.2f, %.2f)' % (max_x, max_y))
+        print(('maximum coords: (%.2f, %.2f)' % (max_x, max_y)))
 
         plt.figure()
         plt.axes().set_aspect('equal', 'datalim')
