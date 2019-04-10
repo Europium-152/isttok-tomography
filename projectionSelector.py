@@ -1,4 +1,3 @@
-from __future__ import print_function
 import shutil
 import os
 import sys
@@ -7,7 +6,8 @@ import numpy as np
 
 valid_projections = [
     "line-approximation.npy",
-    "complex-view-cone.npy"
+    "complex-view-cone.npy",
+    "complex-view-cone-128.npy"
 ]
 
 # Module directory. Use to fetch the projection files
@@ -17,7 +17,7 @@ this_directory = os.path.dirname(__file__) + '\\projections\\'
 def select_projection(file_to_copy):
 
     if os.path.exists("../projections.npy"):
-        answer = strtobool(raw_input("Do you wish to overwrite the existing projection configuration? (y/n)"))
+        answer = strtobool(input("Do you wish to overwrite the existing projection configuration? (y/n)"))
         if answer:
             shutil.copy(file_to_copy, "../projections.npy")
             print("Done")
