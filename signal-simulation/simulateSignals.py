@@ -1,17 +1,7 @@
-from __future__ import print_function
-import matplotlib
-matplotlib.use("TkAgg")
-
 import numpy as np
 from exportSignals import export_signals
 import matplotlib.pyplot as plt
 from calibrationShots import shots, keys, times
-from skimage.draw import ellipse
-import sys
-from scipy.ndimage.measurements import center_of_mass
-from numpy import unravel_index
-import scipy
-from core import mfi
 
 plt.close("all")
 
@@ -24,13 +14,15 @@ def find_nearest(array, value):
     return idx, array[idx]
 
 
-def simulate_signal(phantom_number, plot=True):
+def simulate_signal(phantom_number, reconstruction_time='auto', plot=True):
     """ For a given phantom number return the simulated data with the current projection method and the real signals.
     The simulated signal is normalized to have the same total intensity as the actual measured signal
 
     Parameters:
-         phantom_number: int
+        phantom_number: int
             The number associated with the lamp position
+        reconstruction_time: float, optional
+            Time instant to perform reconstruction. If set to 'auto', the time instant will be retrieved from the list
         plot: Bool, optional
             Show the plotted signals. Defaults to True
     Returns:
@@ -68,18 +60,25 @@ def simulate_signal(phantom_number, plot=True):
     print('signals_data:', signals_data.shape, signals_data.dtype)
     print('signals_time:', signals_time.shape, signals_time.dtype)
 
-    time = times[keys[phantom_number]]
-    time_index, time = find_nearest(signals_time[0], time)
-    f_measured = signals_data[:, time_index]
+    if reconstruction_time == 'auto':
+        time = times[keys[phantom_number]]
+        time_index, time = find_nearest(signals_time[0], time)
+        f_measured = signals_data[:, time_index]
+    else:
+        time = reconstruction_time
+        time_index, time = find_nearest(signals_time[0], time)
+        f_measured = signals_data[:, time_index]
 
     # Normalize simulated f vector -------------------------------------------------------------------------------------
 
-    # CHOOSE THIS Sensor-wise normalization -----------------------------
+    # CHOOSE THIS Camera-wise normalization -----------------------------
     # f_simulated[:16] *= np.sum(f_measured[:16])/np.sum(f_simulated[:16])
     # f_simulated[16:] *= np.sum(f_measured[16:])/np.sum(f_simulated[16:])
 
-    # OR THIS Global normalization ---------------------
-    f_simulated *= np.sum(f_measured)/np.sum(f_simulated)
+    # OR THIS Global normalization, avoids reflections ---------------------
+    f_simulated *= \
+        np.sum(f_measured[f_simulated > (np.sum(f_simulated) / 32000.)]) / \
+        np.sum(f_simulated[f_simulated > (np.sum(f_simulated) / 32000.)])
 
     # Plotting measured and simulated signals --------------------------------------------------------------------------
 
