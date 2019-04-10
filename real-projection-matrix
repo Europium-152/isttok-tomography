@@ -8,7 +8,7 @@ from scipy.interpolate import interp2d as interpolate
 import matplotlib.pyplot as plt
 import globalParameters as gp
 
-sensors = np.arange(30, 32)
+sensors = np.arange(48)
 
 coordinates_files = [
     "top-coordinates-sensor-1.npy",
@@ -44,6 +44,23 @@ coordinates_files = [
     "out-coordinates-sensor-14.npy",
     "out-coordinates-sensor-15.npy",
     "out-coordinates-sensor-16.npy",
+
+    "bot-coordinates-sensor-1.npy",
+    "bot-coordinates-sensor-2.npy",
+    "bot-coordinates-sensor-3.npy",
+    "bot-coordinates-sensor-4.npy",
+    "bot-coordinates-sensor-5.npy",
+    "bot-coordinates-sensor-6.npy",
+    "bot-coordinates-sensor-7.npy",
+    "bot-coordinates-sensor-8.npy",
+    "bot-coordinates-sensor-9.npy",
+    "bot-coordinates-sensor-10.npy",
+    "bot-coordinates-sensor-11.npy",
+    "bot-coordinates-sensor-12.npy",
+    "bot-coordinates-sensor-13.npy",
+    "bot-coordinates-sensor-14.npy",
+    "bot-coordinates-sensor-15.npy",
+    "bot-coordinates-sensor-16.npy",
 ]
 
 solid_angle_files = [
@@ -87,10 +104,30 @@ solid_angle_files = [
     "solid-angle-top-and-out-sensors-2-and-15.npy",
     "solid-angle-top-and-out-sensors-1-and-16.npy",
 
+    # Bottom sensor first 8
+    "solid-angle-bot-sensors-1-and-16.npy",
+    "solid-angle-bot-sensors-2-and-15.npy",
+    "solid-angle-bot-sensors-3-and-14.npy",
+    "solid-angle-bot-sensors-4-and-13.npy",
+    "solid-angle-bot-sensors-5-and-12.npy",
+    "solid-angle-bot-sensors-6-and-11.npy",
+    "solid-angle-bot-sensors-7-and-10.npy",
+    "solid-angle-bot-sensors-8-and-9.npy",
+
+    # Bottom sensor last 8
+    "solid-angle-bot-sensors-8-and-9.npy",
+    "solid-angle-bot-sensors-7-and-10.npy",
+    "solid-angle-bot-sensors-6-and-11.npy",
+    "solid-angle-bot-sensors-5-and-12.npy",
+    "solid-angle-bot-sensors-4-and-13.npy",
+    "solid-angle-bot-sensors-3-and-14.npy",
+    "solid-angle-bot-sensors-2-and-15.npy",
+    "solid-angle-bot-sensors-1-and-16.npy",
+
 ]
 
-resolution = "0mm5"  # 0.5 millimeter resolution
-# resolution = "1mm0"  # 1.0 millimeter resolution
+# resolution = "0mm5"  # 0.5 millimeter resolution
+resolution = "1mm0"  # 1.0 millimeter resolution
 
 solid_angles_dir = "D:/uni/tomography-calibration/solid-angles-values-res-" + resolution + "/"
 projection_functions_dir = "D:/uni/tomography-calibration/real-projection-functions-" + resolution + "/"
@@ -101,7 +138,7 @@ all_projections = []
 for sensor_number in sensors:
 
     try:
-        projection_function = np.load(projection_functions_dir + "sensor%d.npy" % sensor_number)[()]
+        projection_function = np.load(projection_functions_dir + "sensor%d.npy" % sensor_number, fix_imports=True, encoding='latin1')[()]
         print("Found interpolation function for sensor %d" % sensor_number)
 
     except IOError:
@@ -159,31 +196,31 @@ for sensor_number in sensors:
         projection_function = interpolate(gridx*0.001, gridy*0.001, proj_values*0.5)
         np.save(projection_functions_dir + "sensor%d.npy" % sensor_number, projection_function)
 
-    # n_rows = 128  # y-axis pixel resolution
-    # n_cols = 128  # x-axis pixel resolution
-    #
-    # x_min = -100.
-    # x_max = +100.
-    #
-    # y_min = -100.
-    # y_max = +100.
-    #
-    # x_grid = np.linspace(x_min, x_max, num=n_cols)
-    # y_grid = np.linspace(y_max, y_min, num=n_rows)
-    #
-    # projections = []
-    #
-    # for y in y_grid:
-    #     projections.append([])
-    #     for x in x_grid:
-    #         projections[-1].append(projection_function(x, y)[0])
-    #         # TODO: Use average value inside the grid instead of value at the center
-    #
+    n_rows = 45  # y-axis pixel resolution
+    n_cols = 45  # x-axis pixel resolution
+
+    x_min = -100.
+    x_max = +100.
+
+    y_min = -100.
+    y_max = +100.
+
+    x_grid = np.linspace(x_min, x_max, num=n_cols)
+    y_grid = np.linspace(y_max, y_min, num=n_rows)
+
+    projections = []
+
+    for y in y_grid:
+        projections.append([])
+        for x in x_grid:
+            projections[-1].append(projection_function(x, y)[0])
+            # TODO: Use average value inside the grid instead of value at the center
+
     # plt.figure()
     # plt.imshow(projections)
     # plt.colorbar()
-#
-#     all_projections.append(projections)
-#
-# all_projections = np.array(all_projections)
-# np.save("projections/complex-view-cone-128.npy", all_projections)
+
+    all_projections.append(projections)
+
+all_projections = np.array(all_projections)
+np.save("projections/complex-view-cone-45.npy", all_projections)
