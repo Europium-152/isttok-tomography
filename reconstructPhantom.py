@@ -1,5 +1,6 @@
 from projectionSelector import load_projection
-from tomography import MFI
+from optimizedC.tomography import MFI
+# from tomography import MFI
 from exportSignals import prepare_signals
 from calibrationShots import keys, times
 import numpy as np
@@ -47,14 +48,14 @@ def phantom(phantom_id, plot=True):
     signal_times, signal_data = prepare_signals(phantom_id)
 
     reconstruction_time = times[phantom_id]
-    print("Perform reconstruction for time instant %f" % reconstruction_time)
+    print(("Perform reconstruction for time instant %f" % reconstruction_time))
     time_index, time = find_nearest(signal_times, reconstruction_time)
-    print("Associated time index is %d, actual stored time is %f" % (time_index, time))
+    print(("Associated time index is %d, actual stored time is %f" % (time_index, time)))
 
     # Fixed Regularization constant --------------------------------------------------------------------------
 
-    alpha_1 = 0.01
-    alpha_2 = 0.01
+    alpha_1 = 0.0005
+    alpha_2 = 0.0005
     alpha_3 = 1
     alpha_4 = 0
 
@@ -64,7 +65,7 @@ def phantom(phantom_id, plot=True):
                                          alpha_2=alpha_2,
                                          alpha_3=alpha_3,
                                          alpha_4=alpha_4,
-                                         max_iterations=20)
+                                         max_iterations=10)
 
     # Adaptive regularization constant -------------------------------------------------------------------
 
@@ -114,7 +115,8 @@ def phantom(phantom_id, plot=True):
             plt.colorbar()
             circle = plt.Circle((0., 0.), 85., color='w', fill=False)
             plt.gca().add_artist(circle)
-            plt.savefig("phantom-reconstructions/phantom-%d-reconstruction.png" % phantom_number)
-            plt.show()
+            # plt.savefig("phantom-reconstructions/phantom-%d-reconstruction.png" % phantom_number)
 
+    plt.show()
     return g_list[0], mfi.x_array_plot, mfi.y_array_plot
+
