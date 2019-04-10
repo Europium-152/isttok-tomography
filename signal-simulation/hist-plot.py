@@ -13,7 +13,7 @@ def signal_simulation_histogram(phantom):
     Parameters
     ----------
     phantom: int or string
-        Integer associated with lamp position or string with format "radius_3 digit angle", e.g. "3_045"
+        Integer associated with lamp position or string with format "radius_3-digit-angle", e.g. "3_045"
 
     Returns
     -------
@@ -51,3 +51,5 @@ def signal_simulation_histogram(phantom):
     plt.show()
 
     return 1
+
+
