@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,6 +9,8 @@ from numpy import unravel_index
 import scipy
 from core import mfi
 from scipy.optimize import minimize_scalar
+import cupy as cp
+import time
 
 plt.close("all")
 
@@ -196,6 +198,126 @@ class MFI:
             g_list.append(g_new.reshape((n_rows, n_cols)))
 
             return g_list, first_g.reshape((n_rows, n_cols))
+
+    def reconstruction_gpu(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations):
+        """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
+        mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
+
+        input:
+            signals: array or list of arrays
+                should be an array of single measurements from each sensor ordered like in "projections",
+                or a list of such arrays
+            stop_criteria: float
+                average different between iterations to admit convergence as a percentage.
+            alpha_1, alpha_2, alpha_3, alpha_4: float
+                regularization weights. Horizontal derivative. Vertical derivative. Outside Norm. Inside Norm.
+            max_iterations: int
+                Maximum number of iterations before algorithm gives up
+
+        output:
+            g_list: array or list of arrays
+                Reconstructed g vector, or multiple g vectors if multiple signals were provided
+            first_g: array
+                First iteration g vector. This is the result of the simple Tikhonov regularization
+        """
+
+        # Aliasing for cleaner code --------------------------------------------------
+        Dh = cp.array(self._Dh, dtype=cp.float32)
+        Dv = cp.array(self._Dv, dtype=cp.float32)
+        Pt = cp.array(self._Pt, dtype=cp.float32)
+        n_rows = self._n_rows
+        n_cols = self._n_cols
+
+        reg = cp.array(self._PtP + alpha_3 * self._ItIo + alpha_4 * self._ItIi)
+
+        # Discriminate between single and multiple reconstructions mode --------------
+        _signals = cp.array(signals)
+        if len(_signals.shape) == 1:
+            f_list = [_signals]
+        elif len(_signals.shape) == 2:
+            f_list = _signals
+        else:
+            raise ValueError("signals must be 1 dim for single reconstruction or 2 dim for multiple reconstruction")
+
+        # -----------------------------  FIRST ITERATION  -------------------------------------------------------------
+
+        # Weight matrix, first iteration sets W to 1 -------------------------------
+        W = cp.eye(n_rows * n_cols, dtype=cp.float32)
+
+        # Fisher information (weighted derivatives) --------------------------------
+        DtWDh = cp.dot(cp.transpose(Dh), cp.dot(W, Dh))
+        DtWDv = cp.dot(cp.transpose(Dv), cp.dot(W, Dv))
+
+        # Inversion and calculation of vector g, storage of first guess ------------
+        t0 = time.time()
+        inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
+        t1 = time.time()
+        print("Inversion time on GPU: %f" % (t1 - t0))
+        M = cp.dot(inv, Pt)
+        g_old = cp.dot(M, f_list[0])
+        first_g = cp.array(g_old)
+
+        g_list = []
+
+        # Iterative process --------------------------------------------------------
+        for f in f_list:
+            for i in range(max_iterations):
+                #            g_old[g_old<1e-20]=1e-20
+                t0_gamma = time.time()
+                W = cp.diag(1.0 / cp.abs(g_old))
+
+                DtWDh = cp.dot(np.transpose(Dh), cp.dot(W, Dh))
+                DtWDv = cp.dot(np.transpose(Dv), cp.dot(W, Dv))
+                t1_gamma = time.time()
+
+
+
+                t0_inv = time.time()
+                inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
+                t1_inv = time.time()
+
+
+                t0_dot = time.time()
+                M = cp.dot(inv, Pt)
+                g_new = cp.dot(M, f)
+                t1_dot = time.time()
+
+
+                # plt.figure()
+                # plt.imshow(g_new.reshape((n_rows, n_cols)))
+
+                # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
+                t0_error = time.time()
+                error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(np.abs(first_g))
+                t1_error = time.time()
+
+
+                # print("Iteration %d changed by %.4f%%" % (i, error * 100.))
+
+                t0_copy = time.time()
+                g_old = cp.array(g_new)  # Explicitly copy because python will not
+                t1_copy = time.time()
+
+                t0_if = time.time()
+                if error < stop_criteria:
+                    print("Minimum Fisher converged after %d iterations." % i)
+                    break
+
+                elif i == (max_iterations - 1):
+                    print("WARNING: Minimum Fisher did not converge after %d iterations." % i)
+                    break
+                t1_if = time.time()
+
+                print("Gamma matrices on GPU: %f" % (t1_gamma - t0_gamma))
+                print("Inversion time on GPU: %f" % (t1_inv - t0_inv))
+                print("Dot product on GPU: %f" % (t1_dot - t0_dot))
+                print("Error calculation on GPU: %f" % (t1_error - t0_error))
+                print("Copy time on GPU: %f" % (t1_copy - t0_copy))
+                print("If statements on GPU: %f" % (t1_if - t0_if))
+
+            g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
+
+            return g_list, cp.asnumpy(first_g.reshape((n_rows, n_cols)))
 
     def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, max_iterations):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
