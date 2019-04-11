@@ -1,6 +1,6 @@
 from projectionSelector import load_projection
-from optimizedC.tomography import MFI
-# from tomography import MFI
+# from optimizedC.tomography import MFI
+from tomography import MFI
 from exportSignals import prepare_signals
 from calibrationShots import keys, times
 import numpy as np
@@ -34,6 +34,7 @@ def phantom(phantom_id, plot=True):
         Y coordinates of the top sides of each pixel in the reconstruction
 
     """
+    # Enable line profiling for performance analyses ------------------------------------------
 
     try:
         phantom_number = keys.index(phantom_id)
@@ -59,7 +60,7 @@ def phantom(phantom_id, plot=True):
     alpha_3 = 1
     alpha_4 = 0
 
-    g_list, first_g = mfi.reconstruction(signals=signal_data[time_index],
+    g_list, first_g = mfi.reconstruction_gpu(signals=signal_data[time_index],
                                          stop_criteria=0.,
                                          alpha_1=alpha_1,
                                          alpha_2=alpha_2,

@@ -1,5 +1,5 @@
 from projectionSelector import load_projection
-from optimizedC.tomography import MFI
+from tomography import MFI
 # from tomography import MFI
 from exportSignals import prepare_plasma_signals
 from calibrationShots import keys, times
@@ -126,7 +126,7 @@ def plasma(shot, reconstruction_time, plot=True):
     #
     # def comparison(G):
     #     return -correlation(G.flatten(), phantom_model)[0]
-    #
+     #
     # g_list, first_g, alpha_1 = mfi.tomogram(signals=signal_data[time_index],
     #                                         stop_criteria=0.,
     #                                         comparison=comparison,

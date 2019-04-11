@@ -39,7 +39,7 @@ class MFI:
 
         # Reconstruction Size and Resolution -----------------------------------------------
 
-        self._projections = np.array(projections)
+        self._projections = np.array(projections, dtype=np.float32)
         print('projections:', self._projections.shape, self._projections.dtype)
 
         n_rows = self._projections.shape[1]
@@ -58,9 +58,9 @@ class MFI:
         # Masks, negative mask: zeros inside vessel, positive mask: zeros outside vessel -------------------------------
 
         ii, jj = ellipse(n_rows / 2., n_cols / 2., mask_radius / res_y, mask_radius / res_x)
-        mask_negative = np.ones((n_rows, n_cols))
+        mask_negative = np.ones((n_rows, n_cols), dtype=np.float32)
         mask_negative[ii, jj] = 0.
-        mask_positive = np.zeros((n_rows, n_cols))
+        mask_positive = np.zeros((n_rows, n_cols), dtype=np.float32)
         mask_positive[ii, jj] = 1.
 
         # Apply mask to projection matrix and then reshape -------------------------------------------------------------
@@ -70,16 +70,16 @@ class MFI:
 
         # x and y gradient matrices ----------------------------------------------
 
-        Dh = np.eye(n_rows * n_cols) - np.roll(np.eye(n_rows * n_cols), 1, axis=1)
-        Dv = np.eye(n_rows * n_cols) - np.roll(np.eye(n_rows * n_cols), n_cols, axis=1)
+        Dh = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), 1, axis=1)
+        Dv = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), n_cols, axis=1)
 
         print('Dh:', Dh.shape, Dh.dtype)
         print('Dv:', Dv.shape, Dv.dtype)
 
         # Norm matrix --------------------------------------------------------------
 
-        Io = np.eye(n_rows * n_cols) * mask_negative.flatten()
-        Ii = np.eye(n_rows * n_cols) * mask_positive.flatten()
+        Io = np.eye(n_rows * n_cols, dtype=np.float32) * mask_negative.flatten()
+        Ii = np.eye(n_rows * n_cols, dtype=np.float32) * mask_positive.flatten()
         # Io = np.eye(n_rows * n_cols)
 
         print('Io:', Io.shape, Io.dtype)
@@ -102,6 +102,7 @@ class MFI:
         self._n_rows = n_rows
         self._n_cols = n_cols
 
+    # @profile
     def reconstruction(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
         mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
@@ -134,8 +135,10 @@ class MFI:
         n_rows = self._n_rows
         n_cols = self._n_cols
 
+        reg = np.array(self._PtP + alpha_3 * self._ItIo + alpha_4 * self._ItIi, dtype=np.float32)
+
         # Discriminate between single and multiple reconstructions mode --------------
-        _signals = np.array(signals)
+        _signals = np.array(signals, dtype=np.float32)
         if len(_signals.shape) == 1:
             f_list = [_signals]
         elif len(_signals.shape) == 2:
@@ -146,17 +149,17 @@ class MFI:
         # -----------------------------  FIRST ITERATION  -------------------------------------------------------------
 
         # Weight matrix, first iteration sets W to 1 -------------------------------
-        W = np.eye(n_rows * n_cols)
+        W = np.eye(n_rows * n_cols, dtype=np.float32)
 
         # Fisher information (weighted derivatives) --------------------------------
         DtWDh = np.dot(np.transpose(Dh), np.dot(W, Dh))
         DtWDv = np.dot(np.transpose(Dv), np.dot(W, Dv))
 
         # Inversion and calculation of vector g, storage of first guess ------------
-        inv = np.linalg.inv(PtP + alpha_1 * DtWDh + alpha_2 * DtWDv + alpha_3 * ItIo + alpha_4 * ItIi)
+        inv = np.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
         M = np.dot(inv, Pt)
         g_old = np.dot(M, f_list[0])
-        first_g = np.array(g_old)
+        first_g = np.array(g_old, dtype=np.float32)
 
         g_list = []
 
@@ -183,9 +186,9 @@ class MFI:
                 # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
                 error = np.sum(np.abs(g_new - g_old)) / np.sum(np.abs(first_g))
 
-                print("Iteration %d changed by %.4f%%" % (i, error * 100.))
+                # print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
-                g_old = np.array(g_new)  # Explicitly copy because python will not
+                g_old = np.array(g_new, dtype=np.float32)  # Explicitly copy because python will not
 
                 if error < stop_criteria:
                     print("Minimum Fisher converged after %d iterations." % i)
@@ -199,6 +202,7 @@ class MFI:
 
             return g_list, first_g.reshape((n_rows, n_cols))
 
+    @profile
     def reconstruction_gpu(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
         mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
@@ -223,7 +227,9 @@ class MFI:
 
         # Aliasing for cleaner code --------------------------------------------------
         Dh = cp.array(self._Dh, dtype=cp.float32)
+        Dht = cp.transpose(Dh)
         Dv = cp.array(self._Dv, dtype=cp.float32)
+        Dvt = cp.transpose(Dv)
         Pt = cp.array(self._Pt, dtype=cp.float32)
         n_rows = self._n_rows
         n_cols = self._n_cols
@@ -243,18 +249,25 @@ class MFI:
 
         # Weight matrix, first iteration sets W to 1 -------------------------------
         W = cp.eye(n_rows * n_cols, dtype=cp.float32)
+        cp.asnumpy(W)
 
         # Fisher information (weighted derivatives) --------------------------------
-        DtWDh = cp.dot(cp.transpose(Dh), cp.dot(W, Dh))
-        DtWDv = cp.dot(cp.transpose(Dv), cp.dot(W, Dv))
+        DtWDh = cp.dot(Dht, cp.dot(W, Dh))
+        cp.asnumpy(DtWDh)
+        DtWDv = cp.dot(Dvt, cp.dot(W, Dv))
+        cp.asnumpy(DtWDh)
 
         # Inversion and calculation of vector g, storage of first guess ------------
-        t0 = time.time()
+
         inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
-        t1 = time.time()
-        print("Inversion time on GPU: %f" % (t1 - t0))
+        cp.asnumpy(inv)
+
         M = cp.dot(inv, Pt)
+        cp.asnumpy(M)
+
         g_old = cp.dot(M, f_list[0])
+        cp.asnumpy(g_old)
+
         first_g = cp.array(g_old)
 
         g_list = []
@@ -262,43 +275,38 @@ class MFI:
         # Iterative process --------------------------------------------------------
         for f in f_list:
             for i in range(max_iterations):
-                #            g_old[g_old<1e-20]=1e-20
-                t0_gamma = time.time()
+
+                g_old[g_old < 1e-20] = 1e-20
+
                 W = cp.diag(1.0 / cp.abs(g_old))
+                cp.asnumpy(W)
 
-                DtWDh = cp.dot(np.transpose(Dh), cp.dot(W, Dh))
-                DtWDv = cp.dot(np.transpose(Dv), cp.dot(W, Dv))
-                t1_gamma = time.time()
+                DtWDh = cp.dot(Dht, cp.dot(W, Dh))
+                cp.asnumpy(DtWDh)
+                DtWDv = cp.dot(Dvt, cp.dot(W, Dv))
+                cp.asnumpy(DtWDv)
 
-
-
-                t0_inv = time.time()
                 inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
-                t1_inv = time.time()
+                cp.asnumpy(inv)
 
-
-                t0_dot = time.time()
                 M = cp.dot(inv, Pt)
-                g_new = cp.dot(M, f)
-                t1_dot = time.time()
+                cp.asnumpy(M)
 
+                g_new = cp.dot(M, f)
+                cp.asnumpy(g_new)
 
                 # plt.figure()
                 # plt.imshow(g_new.reshape((n_rows, n_cols)))
 
                 # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
-                t0_error = time.time()
-                error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(np.abs(first_g))
-                t1_error = time.time()
-
+                error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
+                cp.asnumpy(error)
 
                 # print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
-                t0_copy = time.time()
                 g_old = cp.array(g_new)  # Explicitly copy because python will not
-                t1_copy = time.time()
+                cp.asnumpy(g_old)
 
-                t0_if = time.time()
                 if error < stop_criteria:
                     print("Minimum Fisher converged after %d iterations." % i)
                     break
@@ -306,14 +314,6 @@ class MFI:
                 elif i == (max_iterations - 1):
                     print("WARNING: Minimum Fisher did not converge after %d iterations." % i)
                     break
-                t1_if = time.time()
-
-                print("Gamma matrices on GPU: %f" % (t1_gamma - t0_gamma))
-                print("Inversion time on GPU: %f" % (t1_inv - t0_inv))
-                print("Dot product on GPU: %f" % (t1_dot - t0_dot))
-                print("Error calculation on GPU: %f" % (t1_error - t0_error))
-                print("Copy time on GPU: %f" % (t1_copy - t0_copy))
-                print("If statements on GPU: %f" % (t1_if - t0_if))
 
             g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
 
