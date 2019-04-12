@@ -42,7 +42,7 @@ def phantom(phantom_id, plot=True):
         phantom_number = phantom_id
         phantom_id = keys[phantom_number]
 
-    projections = load_projection("complex-view-cone.npy")
+    projections = load_projection("complex-view-cone-80.npy")
 
     mfi = MFI(projections, width=200., height=200., mask_radius=85.)
 
@@ -61,12 +61,12 @@ def phantom(phantom_id, plot=True):
     alpha_4 = 0
 
     g_list, first_g = mfi.reconstruction_gpu(signals=signal_data[time_index],
-                                         stop_criteria=0.,
+                                         stop_criteria=0,
                                          alpha_1=alpha_1,
                                          alpha_2=alpha_2,
                                          alpha_3=alpha_3,
                                          alpha_4=alpha_4,
-                                         max_iterations=10)
+                                         max_iterations=20)
 
     # Adaptive regularization constant -------------------------------------------------------------------
 

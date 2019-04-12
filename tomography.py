@@ -247,8 +247,11 @@ class MFI:
 
         # -----------------------------  FIRST ITERATION  -------------------------------------------------------------
 
+        # First guess to g is uniform plasma distribution --------------------------
+        g_old = cp.ones(n_rows * n_cols, dtype=cp.float32)
+
         # Weight matrix, first iteration sets W to 1 -------------------------------
-        W = cp.eye(n_rows * n_cols, dtype=cp.float32)
+        W = cp.diag(1.0 / cp.abs(g_old))
         cp.asnumpy(W)
 
         # Fisher information (weighted derivatives) --------------------------------
@@ -302,7 +305,7 @@ class MFI:
                 error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
                 cp.asnumpy(error)
 
-                # print("Iteration %d changed by %.4f%%" % (i, error * 100.))
+                print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
                 g_old = cp.array(g_new)  # Explicitly copy because python will not
                 cp.asnumpy(g_old)
@@ -315,7 +318,7 @@ class MFI:
                     print("WARNING: Minimum Fisher did not converge after %d iterations." % i)
                     break
 
-            g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
+                g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
 
             return g_list, cp.asnumpy(first_g.reshape((n_rows, n_cols)))
 
