@@ -129,9 +129,6 @@ class MFI:
         Dh = self._Dh
         Dv = self._Dv
         Pt = self._Pt
-        PtP = self._PtP
-        ItIo = self._ItIo
-        ItIi = self._ItIi
         n_rows = self._n_rows
         n_cols = self._n_cols
 
@@ -165,18 +162,15 @@ class MFI:
 
         # Iterative process --------------------------------------------------------
         for f in f_list:
-            i = 0
-            while True:
+            for i in range(max_iterations):
 
-                i = i + 1
-
-                #            g_old[g_old<1e-20]=1e-20
+                g_old[g_old<1e-20]=1e-20
                 W = np.diag(1.0 / np.abs(g_old))
 
                 DtWDh = np.dot(np.transpose(Dh), np.dot(W, Dh))
                 DtWDv = np.dot(np.transpose(Dv), np.dot(W, Dv))
 
-                inv = np.linalg.inv(PtP + alpha_1 * DtWDh + alpha_2 * DtWDv + alpha_3 * ItIo + alpha_4 * ItIi)
+                inv = np.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
                 M = np.dot(inv, Pt)
                 g_new = np.dot(M, f)
 
@@ -186,7 +180,7 @@ class MFI:
                 # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
                 error = np.sum(np.abs(g_new - g_old)) / np.sum(np.abs(first_g))
 
-                # print("Iteration %d changed by %.4f%%" % (i, error * 100.))
+                print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
                 g_old = np.array(g_new, dtype=np.float32)  # Explicitly copy because python will not
 
@@ -198,11 +192,11 @@ class MFI:
                     print("WARNING: Minimum Fisher did not converge after %d iterations." % i)
                     break
 
-            g_list.append(g_new.reshape((n_rows, n_cols)))
+                g_list.append(g_new.reshape((n_rows, n_cols)))
 
             return g_list, first_g.reshape((n_rows, n_cols))
 
-    @profile
+    # @profile
     def reconstruction_gpu(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
         mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
@@ -252,24 +246,24 @@ class MFI:
 
         # Weight matrix, first iteration sets W to 1 -------------------------------
         W = cp.diag(1.0 / cp.abs(g_old))
-        cp.asnumpy(W)
+        # cp.asnumpy(W)
 
         # Fisher information (weighted derivatives) --------------------------------
         DtWDh = cp.dot(Dht, cp.dot(W, Dh))
-        cp.asnumpy(DtWDh)
+        # cp.asnumpy(DtWDh)
         DtWDv = cp.dot(Dvt, cp.dot(W, Dv))
-        cp.asnumpy(DtWDh)
+        # cp.asnumpy(DtWDh)
 
         # Inversion and calculation of vector g, storage of first guess ------------
 
         inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
-        cp.asnumpy(inv)
+        # cp.asnumpy(inv)
 
         M = cp.dot(inv, Pt)
-        cp.asnumpy(M)
+        # cp.asnumpy(M)
 
         g_old = cp.dot(M, f_list[0])
-        cp.asnumpy(g_old)
+        # cp.asnumpy(g_old)
 
         first_g = cp.array(g_old)
 
@@ -282,33 +276,33 @@ class MFI:
                 g_old[g_old < 1e-20] = 1e-20
 
                 W = cp.diag(1.0 / cp.abs(g_old))
-                cp.asnumpy(W)
+                # cp.asnumpy(W)
 
                 DtWDh = cp.dot(Dht, cp.dot(W, Dh))
-                cp.asnumpy(DtWDh)
+                # cp.asnumpy(DtWDh)
                 DtWDv = cp.dot(Dvt, cp.dot(W, Dv))
-                cp.asnumpy(DtWDv)
+                # cp.asnumpy(DtWDv)
 
                 inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
-                cp.asnumpy(inv)
+                # cp.asnumpy(inv)
 
                 M = cp.dot(inv, Pt)
-                cp.asnumpy(M)
+                # cp.asnumpy(M)
 
                 g_new = cp.dot(M, f)
-                cp.asnumpy(g_new)
+                # cp.asnumpy(g_new)
 
                 # plt.figure()
                 # plt.imshow(g_new.reshape((n_rows, n_cols)))
 
                 # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
                 error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
-                cp.asnumpy(error)
+                # cp.asnumpy(error)
 
                 print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
                 g_old = cp.array(g_new)  # Explicitly copy because python will not
-                cp.asnumpy(g_old)
+                # cp.asnumpy(g_old)
 
                 if error < stop_criteria:
                     print("Minimum Fisher converged after %d iterations." % i)
