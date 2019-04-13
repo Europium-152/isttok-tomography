@@ -63,4 +63,4 @@ def produce_phantom(mu_x, mu_y, fwhm, area, resolution, plot=True):
     plt.colorbar()
     plt.show()
 
-    return G
+    return G.flatten()
