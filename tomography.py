@@ -231,7 +231,7 @@ class MFI:
         reg = cp.array(self._PtP + alpha_3 * self._ItIo + alpha_4 * self._ItIi)
 
         # Discriminate between single and multiple reconstructions mode --------------
-        _signals = cp.array(signals)
+        _signals = cp.array(signals, dtype=cp.float32)
         if len(_signals.shape) == 1:
             f_list = [_signals]
         elif len(_signals.shape) == 2:
