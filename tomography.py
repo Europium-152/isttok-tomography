@@ -8,6 +8,7 @@ from numpy import unravel_index
 import scipy
 from core import mfi
 from scipy.optimize import minimize_scalar
+from scipy.linalg import block_diag
 import cupy as cp
 import time
 
@@ -18,7 +19,7 @@ plt.rcParams.update({'font.size': 18})
 
 class MFI:
 
-    def __init__(self, projections, width=200., height=200., mask_radius=85.):
+    def __init__(self, projections, width=200., height=200., mask_radius=85., enable_gpu=True):
         """
         Parameters
         ----------
@@ -69,8 +70,31 @@ class MFI:
 
         # x and y gradient matrices ----------------------------------------------
 
-        Dh = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), 1, axis=1)
-        Dv = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), n_cols, axis=1)
+        # Dh = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), 1, axis=1)
+        # Dv = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), n_cols, axis=1)
+
+        # New matrices more correct -----------------------------------------------
+
+        Dh_element = np.diag(np.ones(n_cols - 1), k=1) - np.diag(np.ones(n_cols - 1), k=-1)
+        Dh_element[0, 0] = -2.
+        Dh_element[0, 1] = 2.
+        Dh_element[-1, -1] = 2.
+        Dh_element[-1, -2] = -2.
+
+        Dh = 0.5*block_diag(*(Dh_element for i in range(n_rows)))
+
+        Dv_element = np.append(np.diag(2. * np.ones(n_cols)), np.diag(-2. * np.ones(n_cols)), axis=1)
+        Dv_top = np.append(Dv_element, np.zeros((n_cols, n_cols * (n_rows - 2))), axis=1)
+
+        Dv_mid = np.append(np.diag(np.ones(n_cols * (n_rows - 2))), np.zeros((n_cols * (n_rows - 2), n_cols * 2)),
+                           axis=1) + \
+                 np.append(np.zeros((n_cols * (n_rows - 2), n_cols * 2)), np.diag(-1. * np.ones(n_cols * (n_rows - 2))),
+                           axis=1)
+
+        Dv_bot = np.roll(Dv_top, n_cols * (n_rows - 2), axis=1)
+
+        Dv = np.append(Dv_top, Dv_mid, axis=0)
+        Dv = 0.5*np.append(Dv, Dv_bot, axis=0)
 
         print('Dh:', Dh.shape, Dh.dtype)
         print('Dv:', Dv.shape, Dv.dtype)
@@ -92,14 +116,25 @@ class MFI:
         ItIi = np.dot(np.transpose(Ii), Ii)
 
         # Aliasing -----------------------------------------------------------------
-        self._Dh = Dh
-        self._Dv = Dv
+        self._Dh = np.array(Dh, dtype=np.float32)
+        self._Dv = np.array(Dv, dtype=np.float32)
         self._Pt = Pt
         self._PtP = PtP
         self._ItIo = ItIo
         self._ItIi = ItIi
         self._n_rows = n_rows
         self._n_cols = n_cols
+
+        # GPU variable allocation --------------------------------------------------
+        if enable_gpu:
+            self._gpu_Dh = cp.array(self._Dh, dtype=cp.float32)
+            self._gpu_Dht = cp.transpose(self._gpu_Dh)
+            self._gpu_Dv = cp.array(self._Dv, dtype=cp.float32)
+            self._gpu_Dvt = cp.transpose(self._gpu_Dv)
+            self._gpu_Pt = cp.array(self._Pt, dtype=cp.float32)
+            self._gpu_PtP = cp.array(self._PtP, dtype=cp.float32)
+            self._gpu_ItIo = cp.array(self._ItIo)
+            self._gpu_ItIi = cp.array(self._ItIi)
 
     # @profile
     def reconstruction(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations):
@@ -196,7 +231,8 @@ class MFI:
             return g_list, first_g.reshape((n_rows, n_cols))
 
     # @profile
-    def reconstruction_gpu(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations):
+    def reconstruction_gpu(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations,
+                           iterations=False, guess=None, verbose=False):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
         mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
 
@@ -210,6 +246,8 @@ class MFI:
                 regularization weights. Horizontal derivative. Vertical derivative. Outside Norm. Inside Norm.
             max_iterations: int
                 Maximum number of iterations before algorithm gives up
+            verbose: boolean, optional
+                Print inner convergence messages. Defaults to `False`
 
         output:
             g_list: array or list of arrays
@@ -219,15 +257,22 @@ class MFI:
         """
 
         # Aliasing for cleaner code --------------------------------------------------
-        Dh = cp.array(self._Dh, dtype=cp.float32)
-        Dht = cp.transpose(Dh)
-        Dv = cp.array(self._Dv, dtype=cp.float32)
-        Dvt = cp.transpose(Dv)
-        Pt = cp.array(self._Pt, dtype=cp.float32)
+        # Dh = self._cp.array(self._Dh, dtype=cp.float32)
+        # Dht = cp.transpose(Dh)
+        # Dv = cp.array(self._Dv, dtype=cp.float32)
+        # Dvt = cp.transpose(Dv)
+        # Pt = cp.array(self._Pt, dtype=cp.float32)
         n_rows = self._n_rows
         n_cols = self._n_cols
 
-        reg = cp.array(self._PtP + alpha_3 * self._ItIo + alpha_4 * self._ItIi)
+        Dh = self._gpu_Dh
+        Dht = self._gpu_Dht
+        Dv = self._gpu_Dv
+        Dvt = self._gpu_Dvt
+        Pt = self._gpu_Pt
+        PtP = self._gpu_PtP
+        ItIi = self._gpu_ItIi
+        ItIo = self._gpu_ItIo
 
         # Discriminate between single and multiple reconstructions mode --------------
         _signals = cp.array(signals, dtype=cp.float32)
@@ -241,9 +286,15 @@ class MFI:
         # -----------------------------  FIRST ITERATION  -------------------------------------------------------------
 
         # First guess to g is uniform plasma distribution --------------------------
-        g_old = cp.ones(n_rows * n_cols, dtype=cp.float32)
+        if guess is None:
+            g_old = cp.ones(n_rows * n_cols, dtype=cp.float32)
+        else:
+            g_old = cp.array(guess)
 
-        # Weight matrix, first iteration sets W to 1 -------------------------------
+        # List of emissivities -----------------------------------------------------
+        g_list = []
+
+        # Weight matrix ------------------------------------------------------------
         W = cp.diag(1.0 / cp.abs(g_old))
         # cp.asnumpy(W)
 
@@ -255,7 +306,7 @@ class MFI:
 
         # Inversion and calculation of vector g, storage of first guess ------------
 
-        inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
+        inv = cp.linalg.inv(alpha_1 * DtWDh + alpha_2 * DtWDv + PtP + alpha_3 * ItIo + alpha_4 * ItIi)
         # cp.asnumpy(inv)
 
         M = cp.dot(inv, Pt)
@@ -264,15 +315,14 @@ class MFI:
         g_old = cp.dot(M, f_list[0])
         # cp.asnumpy(g_old)
 
-        first_g = cp.array(g_old)
-
-        g_list = []
+        if iterations:
+            g_list.append(cp.asnumpy(g_old.reshape((n_rows, n_cols))))
 
         # Iterative process --------------------------------------------------------
         for f in f_list:
             for i in range(max_iterations):
 
-                g_old[g_old < 1e-20] = 1e-20
+                g_old[g_old < 1e-20] = 1e-30
 
                 W = cp.diag(1.0 / cp.abs(g_old))
                 # cp.asnumpy(W)
@@ -298,7 +348,8 @@ class MFI:
                 error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
                 # cp.asnumpy(error)
 
-                print("Iteration %d changed by %.4f%%" % (i, error * 100.))
+                if verbose:
+                    print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
                 g_old = cp.array(g_new)  # Explicitly copy because python will not
                 # cp.asnumpy(g_old)
@@ -311,9 +362,10 @@ class MFI:
                     print("WARNING: Minimum Fisher did not converge after %d iterations." % i)
                     break
 
-                g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
+                if iterations:
+                    g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
 
-            return g_list, cp.asnumpy(first_g.reshape((n_rows, n_cols)))
+            return g_list
 
     def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, inner_max_iterations=10, outer_max_iterations=10):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
@@ -344,34 +396,40 @@ class MFI:
                 First iteration g vector. This is the result of the simple Tikhonov regularization
         """
 
-        def reconstruction_wrapper(alpha_iterable):
+        def reconstruction_wrapper(alpha_exponent):
+
+            alpha_iterable = 10.**alpha_exponent
             # Call reconstruction routine --------
-            (g_list, _) = self.reconstruction_gpu(signals,
-                                              stop_criteria=stop_criteria,
-                                              alpha_1=alpha_iterable,
-                                              alpha_2=alpha_iterable,
-                                              alpha_3=alpha_3,
-                                              alpha_4=alpha_4,
-                                              max_iterations=inner_max_iterations)
+            g_list = self.reconstruction_gpu(signals,
+                                                  stop_criteria=stop_criteria,
+                                                  alpha_1=alpha_iterable,
+                                                  alpha_2=alpha_iterable,
+                                                  alpha_3=alpha_3,
+                                                  alpha_4=alpha_4,
+                                                  max_iterations=inner_max_iterations,
+                                                  verbose=True)
 
             # Compare with the phantom model -----
             # return -correlation(g_list[-1].flatten(), phantom_model)[0]
-            return comparison(g_list[-1])
+            cost = comparison(g_list[-1])
+            print("x: %f\tcost: %f" % (alpha_iterable, cost))
+            return cost
 
         result = minimize_scalar(reconstruction_wrapper,
                                  method='bounded',
-                                 bounds=(0., 0.0001),
-                                 bracket=(0.000001, 0.0001),
+                                 bounds=(-20, 0),
+                                 # bracket=(-10, -3),
                                  tol=0.0000000001,
                                  options={'maxiter': outer_max_iterations, 'disp': 3})
 
         g_list, first_g = self.reconstruction_gpu(signals,
-                                              stop_criteria=stop_criteria,
-                                              alpha_1=result.x,
-                                              alpha_2=result.x,
-                                              alpha_3=alpha_3,
-                                              alpha_4=alpha_4,
-                                              max_iterations=inner_max_iterations)
+                                                  stop_criteria=stop_criteria,
+                                                  alpha_1=10.**result.x,
+                                                  alpha_2=10.**result.x,
+                                                  alpha_3=alpha_3,
+                                                  alpha_4=alpha_4,
+                                                  max_iterations=inner_max_iterations,
+                                                  verbose=True)
 
         print("Optimal regularization constant: %f" % result.x)
 
