@@ -1,5 +1,4 @@
 
-
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.draw import ellipse
@@ -164,7 +163,7 @@ class MFI:
         for f in f_list:
             for i in range(max_iterations):
 
-                g_old[g_old<1e-20]=1e-20
+                g_old[g_old < 1e-20] = 1e-20
                 W = np.diag(1.0 / np.abs(g_old))
 
                 DtWDh = np.dot(np.transpose(Dh), np.dot(W, Dh))
@@ -316,7 +315,7 @@ class MFI:
 
             return g_list, cp.asnumpy(first_g.reshape((n_rows, n_cols)))
 
-    def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, max_iterations):
+    def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, inner_max_iterations=10, outer_max_iterations=10):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
         mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
 
@@ -333,8 +332,10 @@ class MFI:
                 TODO: Implement the chi square option and use it as default
             alpha_3, alpha_4: float
                 regularization weights: 3 - Outside Norm. 4 - Inside Norm.
-            max_iterations: int
-                Maximum number of iterations before algorithm gives up
+            inner_max_iterations: int
+                Maximum number of iterations of the inner MFI loop
+            outer_max_iterations: int
+                Maximum number of iterations of the outer loop that optimizes the regularization parameter
 
         output:
             g_list: array or list of arrays
@@ -345,27 +346,32 @@ class MFI:
 
         def reconstruction_wrapper(alpha_iterable):
             # Call reconstruction routine --------
-            (g_list, _) = self.reconstruction(signals,
+            (g_list, _) = self.reconstruction_gpu(signals,
                                               stop_criteria=stop_criteria,
                                               alpha_1=alpha_iterable,
                                               alpha_2=alpha_iterable,
                                               alpha_3=alpha_3,
                                               alpha_4=alpha_4,
-                                              max_iterations=max_iterations)
+                                              max_iterations=inner_max_iterations)
 
             # Compare with the phantom model -----
             # return -correlation(g_list[-1].flatten(), phantom_model)[0]
             return comparison(g_list[-1])
 
-        result = minimize_scalar(reconstruction_wrapper, bracket=(0.0001, 0.001), tol=0.01, options={'maxiter': 8})
+        result = minimize_scalar(reconstruction_wrapper,
+                                 method='bounded',
+                                 bounds=(0., 0.0001),
+                                 bracket=(0.000001, 0.0001),
+                                 tol=0.0000000001,
+                                 options={'maxiter': outer_max_iterations, 'disp': 3})
 
-        g_list, first_g = self.reconstruction(signals,
+        g_list, first_g = self.reconstruction_gpu(signals,
                                               stop_criteria=stop_criteria,
                                               alpha_1=result.x,
                                               alpha_2=result.x,
                                               alpha_3=alpha_3,
                                               alpha_4=alpha_4,
-                                              max_iterations=max_iterations)
+                                              max_iterations=inner_max_iterations)
 
         print("Optimal regularization constant: %f" % result.x)
 

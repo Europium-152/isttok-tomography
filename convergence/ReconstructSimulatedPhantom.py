@@ -14,7 +14,7 @@ plot = True
 
 # Load the phantom ---------------------------------------------------------------------------------------
 
-phantom = produce_phantom(0., 0., 32., 1., 45, plot=True)
+phantom = produce_phantom(15., 15., 32., 1., 45, plot=True)
 
 # Load projection matrix ---------------------------------------------------------------------------------
 
@@ -31,35 +31,36 @@ mfi = MFI(projections, width=200., height=200., mask_radius=85.)
 
 # Run reconstruction -------------------------------------------------------------------------------------
 
-alpha_1 = 5e-8
-alpha_2 = 5e-8
-alpha_3 = 1
-alpha_4 = 0
-
-g_list, first_g = mfi.reconstruction_gpu(signals=signals,
-                                     stop_criteria=0,
-                                     alpha_1=alpha_1,
-                                     alpha_2=alpha_2,
-                                     alpha_3=alpha_3,
-                                     alpha_4=alpha_4,
-                                     max_iterations=10)
-
-# Adaptive regularization constant -------------------------------------------------------------------
-
+# alpha_1 = 5e-8
+# alpha_2 = 5e-8
 # alpha_3 = 1
 # alpha_4 = 0
 #
-# phantom_model = np.load("phantoms/Phantom-%d.npy" % phantom_number)
-#
-# def comparison(G):
-#     return -correlation(G.flatten(), phantom_model)[0]
-#
-# g_list, first_g, alpha_1 = mfi.tomogram(signals=signal_data[time_index],
-#                                         stop_criteria=0.,
-#                                         comparison=comparison,
-#                                         alpha_3=alpha_3,
-#                                         alpha_4=alpha_4,
-#                                         max_iterations=4)
+# g_list, first_g = mfi.reconstruction_gpu(signals=signals,
+#                                      stop_criteria=0,
+#                                      alpha_1=alpha_1,
+#                                      alpha_2=alpha_2,
+#                                      alpha_3=alpha_3,
+#                                      alpha_4=alpha_4,
+#                                      max_iterations=10)
+
+# Adaptive regularization constant -------------------------------------------------------------------
+
+alpha_3 = 1.
+alpha_4 = 0.
+
+
+def comparison(g):
+    return np.sum(np.abs(g.flatten()-phantom))
+
+
+g_list, first_g, alpha_1 = mfi.tomogram(signals=signals,
+                                        stop_criteria=0.,
+                                        comparison=comparison,
+                                        alpha_3=alpha_3,
+                                        alpha_4=alpha_4,
+                                        inner_max_iterations=8,
+                                        outer_max_iterations=8)
 
 #########################################################################
 #                                                                       #
