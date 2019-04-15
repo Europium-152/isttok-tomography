@@ -220,7 +220,7 @@ for px, sensor in zip(xMinMax, sensors_index):
 
             #                print("%.12f pm %.12f (x10e-5)" % (s_angle*1e5,s_error*1e5) )
 
-            # If the solid angle is zero, we've exited the view cone completly.
+            # If the solid angle is zero, we've exited the view cone completely.
             else:
                 break
 
