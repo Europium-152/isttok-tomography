@@ -4,11 +4,11 @@ Export the real projection matrix
 from __future__ import print_function
 
 import numpy as np
-from scipy.interpolate import interp2d as interpolate
+from scipy.interpolate import interp2d, griddata, CloughTocher2DInterpolator
+from scipy.integrate import dblquad
 import matplotlib.pyplot as plt
 import globalParameters as gp
 
-sensors = np.arange(48)
 
 coordinates_files = [
     "top-coordinates-sensor-1.npy",
@@ -126,6 +126,9 @@ solid_angle_files = [
 
 ]
 
+sensors = np.arange(48)
+# sensors = [32]
+
 # resolution = "0mm5"  # 0.5 millimeter resolution
 resolution = "1mm0"  # 1.0 millimeter resolution
 
@@ -158,21 +161,25 @@ for sensor_number in sensors:
         # proj_values = []  # Ordered solid angle values summed along zz
         # summed_proj = []  # Summed along yy (line approximation)
 
-        # Same grid as used in the computation
-        gridx = np.arange(-100, 100.5, 0.5)
-        gridy = np.arange(-100, 100.5, 0.5)
-
         # Rounding coordinates to um
         coords = np.round(coords * 1000)
-        gridx = np.round(gridx * 1000)
-        gridy = np.round(gridy * 1000)
 
-        proj_values = np.zeros((len(gridy), len(gridx)))
+        x_coord = []
+        y_coord = []
+        proj_values = []
 
-        for y, i in zip(gridy, range(len(gridy))):
-            for x, j in zip(gridx, range(len(gridx))):
-                proj_values[i, j] = \
-                    np.sum(sangles[(coords[:, 0] == x) & (coords[:, 1] == y)])
+        i = 0
+        while i < len(coords):
+            x_coord.append(coords[i, 0])
+            y_coord.append(coords[i, 1])
+            proj_values.append(0.0)
+            while (i < len(coords)) and (coords[i, 0] == x_coord[-1]) and (coords[i, 1] == y_coord[-1]):
+                proj_values[-1] += sangles[i]
+                i += 1
+
+        # Generate data on a grid -------------------------------------------------------
+
+
 
         # summed_proj = np.array(proj_values)
         #
@@ -193,7 +200,10 @@ for sensor_number in sensors:
         # plt.show()
 
         # Interpolation class with projection function
-        projection_function = interpolate(gridx*0.001, gridy*0.001, proj_values*0.5)
+        # projection_function = interpolate(np.array(x_coord)*0.001, np.array(y_coord)*0.001, np.array(proj_values)*2., fill_value=0.0)
+        projection_function = CloughTocher2DInterpolator(0.001 * np.array([[xx, yy] for xx, yy in zip(x_coord, y_coord)]),
+                                                         values=2*np.array(proj_values),
+                                                         fill_value=0.0)
         np.save(projection_functions_dir + "sensor%d.npy" % sensor_number, projection_function)
 
     n_rows = 45  # y-axis pixel resolution
@@ -208,19 +218,45 @@ for sensor_number in sensors:
     x_grid = np.linspace(x_min, x_max, num=n_cols)
     y_grid = np.linspace(y_max, y_min, num=n_rows)
 
+    res_x = x_grid[1] - x_grid[0]
+    res_y = y_grid[0] - y_grid[1]
+
     projections = []
+
+    # for y in y_grid:
+    #     projections.append([])
+    #     for x in x_grid:
+    #         projections[-1].append(projection_function(x, y))
+    #         # TODO: Use average value inside the grid instead of value at the center
 
     for y in y_grid:
         projections.append([])
+        y_sub = np.linspace(y - 0.5 * res_y, y + 0.5 * res_y, 5)
         for x in x_grid:
-            projections[-1].append(projection_function(x, y)[0])
-            # TODO: Use average value inside the grid instead of value at the center
+            x_sub = np.linspace(x - 0.5 * res_x, x + 0.5 * res_x, 5)
+            integral = 0.
+            for yy in y_sub:
+                for xx in x_sub:
+                    integral += projection_function(xx, yy)
+            integral /= float(len(y_sub) * len(x_sub))
+            projections[-1].append(integral)
+
+    # for y in y_grid:
+    #     projections.append([])
+    #     for x in x_grid:
+    #         value = dblquad(projection_function,
+    #                         y - 0.5 * res_y,
+    #                         y + 0.5 * res_y,
+    #                         lambda _: x - 0.5 * res_x,
+    #                         lambda _: x + 0.5 * res_x)[0]
+    #         projections[-1].append(value)
 
     # plt.figure()
-    # plt.imshow(projections)
+    # plt.imshow(projections, vmin=0., vmax=0.002)
     # plt.colorbar()
 
     all_projections.append(projections)
-
+#
 all_projections = np.array(all_projections)
+all_projections[all_projections < 0] = 0
 np.save("projections/complex-view-cone-45.npy", all_projections)
