@@ -58,9 +58,10 @@ def produce_phantom(mu_x, mu_y, fwhm, area, resolution, plot=True):
     x_array_plot = (np.arange(n_cols + 1) - n_cols / 2.) * res_x
     y_array_plot = (n_rows / 2. - np.arange(n_rows + 1)) * res_y
 
-    plt.figure()
-    plt.pcolormesh(x_array_plot, y_array_plot, G, vmin=None, vmax=None)
-    plt.colorbar()
-    plt.show()
+    if plot:
+        plt.figure()
+        plt.pcolormesh(x_array_plot, y_array_plot, G, vmin=None, vmax=None)
+        plt.colorbar()
+        plt.show()
 
     return G.flatten()
