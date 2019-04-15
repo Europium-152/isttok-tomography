@@ -11,6 +11,7 @@ from scipy.optimize import minimize_scalar
 from scipy.linalg import block_diag
 import cupy as cp
 import time
+from scipy.stats import pearsonr
 
 plt.close("all")
 
@@ -70,31 +71,31 @@ class MFI:
 
         # x and y gradient matrices ----------------------------------------------
 
-        # Dh = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), 1, axis=1)
-        # Dv = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), n_cols, axis=1)
+        Dh = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), 1, axis=1)
+        Dv = np.eye(n_rows * n_cols, dtype=np.float32) - np.roll(np.eye(n_rows * n_cols, dtype=np.float32), n_cols, axis=1)
 
-        # New matrices more correct -----------------------------------------------
+        # New matrices more correct (actually are a piece of shit) --------------------------------
 
-        Dh_element = np.diag(np.ones(n_cols - 1), k=1) - np.diag(np.ones(n_cols - 1), k=-1)
-        Dh_element[0, 0] = -2.
-        Dh_element[0, 1] = 2.
-        Dh_element[-1, -1] = 2.
-        Dh_element[-1, -2] = -2.
-
-        Dh = 0.5*block_diag(*(Dh_element for i in range(n_rows)))
-
-        Dv_element = np.append(np.diag(2. * np.ones(n_cols)), np.diag(-2. * np.ones(n_cols)), axis=1)
-        Dv_top = np.append(Dv_element, np.zeros((n_cols, n_cols * (n_rows - 2))), axis=1)
-
-        Dv_mid = np.append(np.diag(np.ones(n_cols * (n_rows - 2))), np.zeros((n_cols * (n_rows - 2), n_cols * 2)),
-                           axis=1) + \
-                 np.append(np.zeros((n_cols * (n_rows - 2), n_cols * 2)), np.diag(-1. * np.ones(n_cols * (n_rows - 2))),
-                           axis=1)
-
-        Dv_bot = np.roll(Dv_top, n_cols * (n_rows - 2), axis=1)
-
-        Dv = np.append(Dv_top, Dv_mid, axis=0)
-        Dv = 0.5*np.append(Dv, Dv_bot, axis=0)
+        # Dh_element = np.diag(np.ones(n_cols - 1), k=1) - np.diag(np.ones(n_cols - 1), k=-1)
+        # Dh_element[0, 0] = -2.
+        # Dh_element[0, 1] = 2.
+        # Dh_element[-1, -1] = 2.
+        # Dh_element[-1, -2] = -2.
+        #
+        # Dh = 0.5*block_diag(*(Dh_element for i in range(n_rows)))
+        #
+        # Dv_element = np.append(np.diag(2. * np.ones(n_cols)), np.diag(-2. * np.ones(n_cols)), axis=1)
+        # Dv_top = np.append(Dv_element, np.zeros((n_cols, n_cols * (n_rows - 2))), axis=1)
+        #
+        # Dv_mid = np.append(np.diag(np.ones(n_cols * (n_rows - 2))), np.zeros((n_cols * (n_rows - 2), n_cols * 2)),
+        #                    axis=1) + \
+        #          np.append(np.zeros((n_cols * (n_rows - 2), n_cols * 2)), np.diag(-1. * np.ones(n_cols * (n_rows - 2))),
+        #                    axis=1)
+        #
+        # Dv_bot = np.roll(Dv_top, n_cols * (n_rows - 2), axis=1)
+        #
+        # Dv = np.append(Dv_top, Dv_mid, axis=0)
+        # Dv = 0.5*np.append(Dv, Dv_bot, axis=0)
 
         print('Dh:', Dh.shape, Dh.dtype)
         print('Dv:', Dv.shape, Dv.dtype)
@@ -127,14 +128,14 @@ class MFI:
 
         # GPU variable allocation --------------------------------------------------
         if enable_gpu:
-            self._gpu_Dh = cp.array(self._Dh, dtype=cp.float32)
+            self._gpu_Dh = cp.array(Dh, dtype=cp.float32)
             self._gpu_Dht = cp.transpose(self._gpu_Dh)
-            self._gpu_Dv = cp.array(self._Dv, dtype=cp.float32)
+            self._gpu_Dv = cp.array(Dv, dtype=cp.float32)
             self._gpu_Dvt = cp.transpose(self._gpu_Dv)
-            self._gpu_Pt = cp.array(self._Pt, dtype=cp.float32)
-            self._gpu_PtP = cp.array(self._PtP, dtype=cp.float32)
-            self._gpu_ItIo = cp.array(self._ItIo)
-            self._gpu_ItIi = cp.array(self._ItIi)
+            self._gpu_Pt = cp.array(Pt, dtype=cp.float32)
+            self._gpu_PtP = cp.array(PtP, dtype=cp.float32)
+            self._gpu_ItIo = cp.array(ItIo, dtype=cp.float32)
+            self._gpu_ItIi = cp.array(ItIi, dtype=cp.float32)
 
     # @profile
     def reconstruction(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations):
@@ -289,7 +290,8 @@ class MFI:
         if guess is None:
             g_old = cp.ones(n_rows * n_cols, dtype=cp.float32)
         else:
-            g_old = cp.array(guess)
+            g_old = cp.array(guess, dtype=cp.float32)
+            g_old[g_old < 1e-20] = 1e-20
 
         # List of emissivities -----------------------------------------------------
         g_list = []
@@ -315,14 +317,15 @@ class MFI:
         g_old = cp.dot(M, f_list[0])
         # cp.asnumpy(g_old)
 
+        first_g = cp.array(g_old)
         if iterations:
             g_list.append(cp.asnumpy(g_old.reshape((n_rows, n_cols))))
 
         # Iterative process --------------------------------------------------------
         for f in f_list:
-            for i in range(max_iterations):
+            for i in range(max_iterations - 1):
 
-                g_old[g_old < 1e-20] = 1e-30
+                g_old[g_old < 1e-20] = 1e-20
 
                 W = cp.diag(1.0 / cp.abs(g_old))
                 # cp.asnumpy(W)
@@ -332,7 +335,7 @@ class MFI:
                 DtWDv = cp.dot(Dvt, cp.dot(W, Dv))
                 # cp.asnumpy(DtWDv)
 
-                inv = cp.linalg.inv(reg + alpha_1 * DtWDh + alpha_2 * DtWDv)
+                inv = cp.linalg.inv(alpha_1 * DtWDh + alpha_2 * DtWDv + PtP + alpha_3 * ItIo + alpha_4 * ItIi)
                 # cp.asnumpy(inv)
 
                 M = cp.dot(inv, Pt)
@@ -345,25 +348,30 @@ class MFI:
                 # plt.imshow(g_new.reshape((n_rows, n_cols)))
 
                 # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
-                error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
+                # error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
+                # error = cp.sum(cp.abs(g_new - g_old)**2) / cp.max(g_new)**2
+                cov = 1. - 0.5*((cp.corrcoef(g_new, g_old)) +
+                                  cp.corrcoef(g_new.reshape((n_rows, n_cols)).T.flatten(),
+                                              g_old.reshape((n_rows, n_cols)).T.flatten()))
+                error = cov[0, 1]
                 # cp.asnumpy(error)
 
                 if verbose:
-                    print("Iteration %d changed by %.4f%%" % (i, error * 100.))
+                    print("Iteration %d changed by %.4f%%" % (i + 2, error * 100.))
 
                 g_old = cp.array(g_new)  # Explicitly copy because python will not
                 # cp.asnumpy(g_old)
 
+                if iterations:
+                    g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
+
                 if error < stop_criteria:
-                    print("Minimum Fisher converged after %d iterations." % i)
+                    print("Minimum Fisher converged after %d iterations." % i + 2)
                     break
 
                 elif i == (max_iterations - 1):
-                    print("WARNING: Minimum Fisher did not converge after %d iterations." % i)
+                    print("WARNING: Minimum Fisher did not converge after %d iterations." % i + 2)
                     break
-
-                if iterations:
-                    g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
 
             return g_list
 
