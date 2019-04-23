@@ -17,8 +17,8 @@ print(df)
 
 # -----------------------------------------------------------------------------------------
 
-n_rows = 45  # y-axis pixel resolution
-n_cols = 45  # x-axis pixel resolution
+n_rows = 80  # y-axis pixel resolution
+n_cols = 80  # x-axis pixel resolution
 
 x_min = -100.
 x_max = +100.
@@ -69,10 +69,17 @@ projections = np.array(projections)
 print('projections:', projections.shape, projections.dtype)
 
 # -------------------------------------------------------------------------
+res_x = (x_max - x_min) / float(n_cols)
+res_y = (y_max - y_min) / float(n_rows)
 
-fname = 'projections/line-approximation.npy'
+x_coord = np.linspace(x_min + res_x * 0.5, x_max - res_x * 0.5, num=n_cols)
+y_coord = np.linspace(y_max - res_y * 0.5, y_min + res_y * 0.5, num=n_rows)
+
+proj_dic = {'x': x_coord, 'y': y_coord, 'projections': projections}
+
+fname = 'projections/line-approximation-80.npy'
 print('Writing:', fname)
-np.save(fname, projections)
+np.save(fname, [proj_dic])
 
 # -------------------------------------------------------------------------
 

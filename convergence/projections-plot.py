@@ -52,7 +52,7 @@ y_gridHD = projections_dicHD['y']
 
 
 summed_projections = 0.
-projection_indices = [0, 3]
+projection_indices = [32, 34]
 # for i in range(len(projections)):
 for i in projection_indices:
     summed_projections += projections[i]
@@ -64,7 +64,7 @@ plt.pcolormesh(x_grid - 0.5 * (x_grid[1] - x_grid[0]),
                summed_projections)
 # plt.pcolormesh(x_grid, y_grid, summed_projections)
 plt.axis('scaled')
-plt.axis(xmin=0, xmax=85, ymin=-85, ymax=85)
+plt.axis(xmin=-85, xmax=85, ymin=-85, ymax=85)
 plt.colorbar()
 
 # Plot contour lines around the cones of sight ---------------------------------------------------------

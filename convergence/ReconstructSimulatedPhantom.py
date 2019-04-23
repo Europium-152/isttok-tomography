@@ -9,6 +9,7 @@ from exportSignals import prepare_signals
 from calibrationShots import keys, times
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.contour as cnt
 from scipy.stats import pearsonr as correlation
 
 # plot = False
@@ -16,12 +17,10 @@ plot = True
 
 # Load the phantom ---------------------------------------------------------------------------------------
 
-phantom = produce_phantom(15., 15., 15., 1., 45, plot=False)
-phantom += produce_phantom(-15., 15., 15., 1., 45, plot=False)
-phantom += produce_phantom(5., -15., 15., 1., 45, plot=False)
-phantom += produce_phantom(0., 0., 65., 4., 45, plot=False)
-
-
+phantom = produce_phantom(mu_x=15., mu_y=15., fwhm=4.5, area=1., resolution=45, plot=False)
+# phantom += produce_phantom(-15., 15., 15., 1., 45, plot=False)
+# phantom += produce_phantom(5., -15., 15., 1., 45, plot=False)
+# phantom += produce_phantom(0., 0., 65., 4., 45, plot=False)
 
 plt.figure()
 plt.imshow(phantom.reshape((45, 45)))
@@ -59,23 +58,34 @@ mfi = MFI(projections, width=200., height=200., mask_radius=85.)
 #
 #     plt.show()
 
-# Run reconstruction -------------------------------------------------------------------------------------
+# Plot the sum of the projections -----------------------------------------------------------------------
 
-alpha_1 = 10. ** -7
-alpha_2 = 10. ** -7
+summed_projections = 0.
+# for i in range(len(projections)):
+for i in [0]:
+    summed_projections += projections[i]
+
+plt.figure()
+ax = plt.imshow(summed_projections)
+cnt.ContourSet(ax, [0.00001])
+
+# %% Run reconstruction -------------------------------------------------------------------------------------
+
+alpha_1 = 10. ** -7.5
+alpha_2 = 10. ** -7.5
 alpha_3 = 10. ** 0
 alpha_4 = 0
 
-g_list = mfi.reconstruction_gpu(signals=signals,
-                                stop_criteria=0,
-                                alpha_1=alpha_1,
-                                alpha_2=alpha_2,
-                                alpha_3=alpha_3,
-                                alpha_4=alpha_4,
-                                max_iterations=19,
-                                iterations=True,
-                                verbose=True,
-                                guess=None)
+# g_list = mfi.reconstruction_gpu(signals=signals,
+#                                 stop_criteria=0,
+#                                 alpha_1=alpha_1,
+#                                 alpha_2=alpha_2,
+#                                 alpha_3=alpha_3,
+#                                 alpha_4=alpha_4,
+#                                 max_iterations=19,
+#                                 iterations=True,
+#                                 verbose=True,
+#                                 guess=None)
 
 # Adaptive regularization constant -------------------------------------------------------------------
 
@@ -167,19 +177,18 @@ if plot:
 
     plt.show()
 
-    for G in g_list[-2:]:
-
-        plt.figure()
-        plt.axes().set_aspect('equal', 'datalim')
-        plt.pcolormesh(mfi.x_array_plot, mfi.y_array_plot, G, vmin=None, vmax=None)
-        plt.title(r"$\alpha$ = %f" % alpha_1)
-        # plt.imshow(g.reshape((n_rows, n_cols)))
-        # plt.plot(center_x, center_y, 'r+')
-        # plt.plot(max_x, max_y, 'b+')
-        plt.colorbar()
-        circle = plt.Circle((0., 0.), 85., color='w', fill=False)
-        plt.gca().add_artist(circle)
-        # plt.savefig("phantom-reconstructions/phantom-%d-reconstruction.png" % phantom_number)
-
-    plt.show()
-# plt.show()
+    # for G in g_list[-2:]:
+    #
+    #     plt.figure()
+    #     plt.axes().set_aspect('equal', 'datalim')
+    #     plt.pcolormesh(mfi.x_array_plot, mfi.y_array_plot, G, vmin=None, vmax=None)
+    #     plt.title(r"$\alpha$ = %f" % alpha_1)
+    #     # plt.imshow(g.reshape((n_rows, n_cols)))
+    #     # plt.plot(center_x, center_y, 'r+')
+    #     # plt.plot(max_x, max_y, 'b+')
+    #     plt.colorbar()
+    #     circle = plt.Circle((0., 0.), 85., color='w', fill=False)
+    #     plt.gca().add_artist(circle)
+    #     # plt.savefig("phantom-reconstructions/phantom-%d-reconstruction.png" % phantom_number)
+    #
+    # plt.show()

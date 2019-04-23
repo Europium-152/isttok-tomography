@@ -206,8 +206,8 @@ for sensor_number in sensors:
                                                          fill_value=0.0)
         np.save(projection_functions_dir + "sensor%d.npy" % sensor_number, projection_function)
 
-    n_rows = 100  # y-axis pixel resolution
-    n_cols = 100  # x-axis pixel resolution
+    n_rows = 80  # y-axis pixel resolution
+    n_cols = 80  # x-axis pixel resolution
 
     x_min = -100.
     x_max = +100.
@@ -259,5 +259,5 @@ for sensor_number in sensors:
 #
 all_projections = np.array(all_projections)
 all_projections[all_projections < 0] = 0
-np.save("projections/complex-view-cone-100.npy", [{'x': x_grid, 'y': y_grid,
+np.save("projections/complex-view-cone-80.npy", [{'x': x_grid, 'y': y_grid,
                                                  'projections': all_projections}])

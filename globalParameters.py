@@ -2,8 +2,8 @@ import numpy as np
 
 # Discretization Parameters ---------------------------------------------------
 
-n_rows = 45  # y-axis number of pixels
-n_cols = 45  # x-axis number of pixels
+n_rows = 80  # y-axis number of pixels
+n_cols = 80  # x-axis number of pixels
 
 x_min = -100.
 x_max = +100.
