@@ -42,7 +42,8 @@ def phantom(phantom_id, plot=True):
         phantom_number = phantom_id
         phantom_id = keys[phantom_number]
 
-    projections = load_projection("complex-view-cone-80.npy")
+    projections = load_projection("complex-view-cone-80.npy")[0]['projections']
+    projections = projections[:32]
 
     mfi = MFI(projections, width=200., height=200., mask_radius=85.)
 
@@ -55,18 +56,19 @@ def phantom(phantom_id, plot=True):
 
     # Fixed Regularization constant --------------------------------------------------------------------------
 
-    alpha_1 = 0.0005
-    alpha_2 = 0.0005
+    alpha_1 = 0.0003
+    alpha_2 = 0.0003
     alpha_3 = 1
     alpha_4 = 0
 
-    g_list, first_g = mfi.reconstruction_gpu(signals=signal_data[time_index],
-                                         stop_criteria=0,
-                                         alpha_1=alpha_1,
-                                         alpha_2=alpha_2,
-                                         alpha_3=alpha_3,
-                                         alpha_4=alpha_4,
-                                         max_iterations=20)
+    g_list = mfi.reconstruction_gpu(signals=signal_data[time_index],
+                                    stop_criteria=0.01,
+                                    alpha_1=alpha_1,
+                                    alpha_2=alpha_2,
+                                    alpha_3=alpha_3,
+                                    alpha_4=alpha_4,
+                                    max_iterations=20,
+                                    verbose=True)
 
     # Adaptive regularization constant -------------------------------------------------------------------
 
@@ -119,5 +121,4 @@ def phantom(phantom_id, plot=True):
             # plt.savefig("phantom-reconstructions/phantom-%d-reconstruction.png" % phantom_number)
 
     plt.show()
-    return g_list[0], mfi.x_array_plot, mfi.y_array_plot
-
+    return g_list[0], np.array(mfi.x_array_plot), np.array(mfi.y_array_plot)
