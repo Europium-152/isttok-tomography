@@ -14,13 +14,15 @@ def find_nearest(array, value):
     return idx, array[idx]
 
 
-def simulate_signal(phantom_number, reconstruction_time='auto', plot=True):
+def simulate_signal(phantom_number, projections, reconstruction_time='auto', plot=True):
     """ For a given phantom number return the simulated data with the current projection method and the real signals.
     The simulated signal is normalized to have the same total intensity as the actual measured signal
 
     Parameters:
         phantom_number: int
             The number associated with the lamp position
+        projections: nd array
+            Projections to use for the simulated signal.
         reconstruction_time: float, optional
             Time instant to perform reconstruction. If set to 'auto', the time instant will be retrieved from the list
         plot: Bool, optional
@@ -34,9 +36,9 @@ def simulate_signal(phantom_number, reconstruction_time='auto', plot=True):
     """
     # Projections vector p ------------------------------------------------------
 
-    fname = '../projections.npy'
-    print('Reading:', fname)
-    projections = np.load(fname)
+    # fname = '../projections.npy'
+    # print('Reading:', fname)
+    # projections = np.load(fname)
 
     print('projections:', projections.shape, projections.dtype)
 
