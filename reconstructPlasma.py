@@ -6,58 +6,8 @@ from calibrationShots import keys, times
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+from signalSimulation.histPlot import magic_histogram
 from scipy.stats import pearsonr as correlation
-
-signal_mask = [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
-    33,
-    34,
-    35,
-    36,
-    # 37,
-    # 38,
-    39,
-    40,
-    # 41,
-    # 42,
-    43,
-    44,
-    45,
-    46,
-    47,
-]
 
 
 def find_nearest(array, value):
@@ -89,12 +39,21 @@ def plasma(shot, reconstruction_time, plot=True):
 
     """
 
-    projections = load_projection("complex-view-cone-45.npy")
+    # Signal mask, in case there are pixels that dont work ---------------------------------------------------------
+
+    signal_mask = []
+    dead_sensors = [24, 26, 34, 37, 38, 41]  # Dead sensors are numbered 0 through 47
+    for i in np.arange(48):
+        if not (i in dead_sensors):
+            signal_mask.append(i)
+
+    projections_dic = load_projection("complex-view-cone-45.npy")[0]
+    projections = projections_dic['projections']
     print("Projections:", projections.size)
-    signal_times, signal_data = prepare_plasma_signals(shot=shot)
+    signal_times, data = prepare_plasma_signals(shot=shot, plot=True)
 
     projections = projections[signal_mask]
-    signal_data = signal_data[:, signal_mask]
+    signal_data = data[:, signal_mask]
 
     mfi = MFI(projections, width=200., height=200., mask_radius=85.)
 
@@ -104,12 +63,12 @@ def plasma(shot, reconstruction_time, plot=True):
 
     # Fixed Regularization constant --------------------------------------------------------------------------
 
-    alpha_1 = 0.005
-    alpha_2 = 0.005
+    alpha_1 = 0.01
+    alpha_2 = 0.01
     alpha_3 = 1
     alpha_4 = 0
 
-    g_list, first_g = mfi.reconstruction_gpu(signals=signal_data[time_index],
+    g_list = mfi.reconstruction_gpu(signals=signal_data[time_index],
                                          stop_criteria=0.10,
                                          alpha_1=alpha_1,
                                          alpha_2=alpha_2,
@@ -139,6 +98,13 @@ def plasma(shot, reconstruction_time, plot=True):
     #                                PLOTTING                               #
     #                                                                       #
     #########################################################################
+
+    # Magic histogram plotting -----------------------------------------------------------------------------------------
+    magic_histogram(projections_dic=projections_dic,
+                    signals=data[time_index],
+                    emissivity=g_list[-1],
+                    dead_signals=dead_sensors)
+
     if plot:
         for G in g_list:
             # centroid = center_of_mass(G)
@@ -157,7 +123,7 @@ def plasma(shot, reconstruction_time, plot=True):
 
             plt.figure()
             plt.axes().set_aspect('equal', 'datalim')
-            plt.pcolormesh(mfi.x_array_plot, mfi.y_array_plot, G, vmin=None, vmax=120)
+            plt.pcolormesh(mfi.x_array_plot, mfi.y_array_plot, G, vmin=None, vmax=None)
             plt.title((r"Shot #%d / $\alpha$ = %f" + "\n" + r"t = %f $\mu$s") % (shot, alpha_1, time))
             # plt.imshow(g.reshape((n_rows, n_cols)))
             # plt.plot(center_x, center_y, 'r+')
@@ -171,3 +137,5 @@ def plasma(shot, reconstruction_time, plot=True):
     plt.show()
     return g_list[0], mfi.x_array_plot, mfi.y_array_plot
 
+
+plasma(45988, 310000)
