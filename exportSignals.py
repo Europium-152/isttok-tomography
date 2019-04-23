@@ -95,7 +95,7 @@ def export_signals(shot_id, plot=False):
 
         x = ISTTOKSignal(shot, tag=tag, uid=False, time_scale=1e-6,
                          cache_dir='D:/uni/daniel-tomografia/local/shot-cache/')
-        detrend = baseline.baseline(x, deg=1)
+        detrend = baseline.baseline(x, deg=0)
         data = x.values - detrend
         time = x.times
 
@@ -300,44 +300,42 @@ def prepare_plasma_signals(shot, plot=False):
 
     signals_data = []
 
-    if plot:
-        plt.figure(figsize=(20, 12))
-
-    for tag in tags:
-
-        x = ISTTOKSignal(shot, tag=tag, uid=False, time_scale=1e-6,
-                         cache_dir='D:/uni/daniel-tomografia/local/shot-cache/')
-        detrend = baseline.baseline(x, deg=1)
-        data = x.values - detrend
-        time = np.array(x.times, dtype=np.float32)
-
-        n = 1
-        data = np.cumsum(data, axis=0)
-        data = (data[n:] - data[:-n]) / n
-        data = data[::n]
-        data = np.clip(data, 0., None)
-        time = time[n // 2::n]
-        time = time[:data.shape[0]]
-        signals_data.append(data)
-
-        try:
-            if not np.allclose(signals_time, time, 0.0, 1.e-8):
-                raise ValueError("tomography signals have different time axis")
-        except NameError:
-            signals_time = time
+    for camera, title in zip(np.reshape(tags, (3, 16)), ['top', 'out', 'bot']):
 
         if plot:
-            plt.plot(time, data, label=tag)
-            if tag == channels[15]:
-                plt.title('signals (top camera)')
-                plt.xlabel('t (s)')
-                plt.legend()
-                plt.figure(figsize=(20, 12))
-            if tag == channels[31]:
-                plt.title('signals (front camera)')
-                plt.xlabel('t (s)')
-                plt.legend()
-            plt.show()
+            fig, axes = plt.subplots(nrows=4, ncols=4, sharex=True, sharey=True)
+            axes = axes.flatten()
+            plt.suptitle(title)
+            plt_index = 0
+
+        for tag in camera:
+
+            x = ISTTOKSignal(shot, tag=tag, uid=False, time_scale=1e-6,
+                             cache_dir='D:/uni/daniel-tomografia/local/shot-cache/')
+
+            detrend = baseline.baseline(x, deg=1)
+            data = x.values - detrend
+            time = np.array(x.times, dtype=np.float32)
+
+            # n = 1
+            # data = np.cumsum(data, axis=0)
+            # data = (data[n:] - data[:-n]) / n
+            # data = data[::n]
+            # data = np.clip(data, 0., None)
+            # time = time[n // 2::n]
+            # time = time[:data.shape[0]]
+            signals_data.append(data)
+
+            try:
+                if not np.allclose(signals_time, time, 0.0, 1.e-8):
+                    raise ValueError("tomography signals have different time axis")
+            except NameError:
+                signals_time = time
+
+            if plot:
+                axes[plt_index].plot(time, data, label=tag + ' detrended')
+                axes[plt_index].plot(time, x.values, label=tag)
+                plt_index += 1
 
     # -------------------------------------------------------------------------
 
