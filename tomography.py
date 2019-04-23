@@ -366,14 +366,17 @@ class MFI:
                     g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
 
                 if error < stop_criteria:
-                    print("Minimum Fisher converged after %d iterations." % i + 2)
+                    print("Minimum Fisher converged after %d iterations." % (i + 2))
                     break
 
                 elif i == (max_iterations - 1):
                     print("WARNING: Minimum Fisher did not converge after %d iterations." % i + 2)
                     break
 
-            return g_list
+            if not iterations:
+                g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
+
+            return np.array(g_list)
 
     def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, inner_max_iterations=10, outer_max_iterations=10):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
