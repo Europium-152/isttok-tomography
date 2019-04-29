@@ -18,10 +18,32 @@ plt.close("all")
 plt.rcParams.update({'font.size': 18})
 
 
+class Tomogram:
+    """TODO: Investigate about overwriting getter methods for attributes"""
+
+    def __init__(self, values, n_rows, n_cols, convergence_flag):
+        self._values = values
+        self._n_rows = n_rows
+        self._n_cols = n_cols
+        self._converged = convergence_flag
+
+    def asarray(self):
+        return np.array(self._values)
+
+    def asmatrix(self):
+        return np.array(self._values).reshape((self._n_rows, self._n_cols))
+
+    def converged(self):
+        return self._converged
+
+
 class MFI:
 
     def __init__(self, projections, width=200., height=200., mask_radius=85., enable_gpu=True):
         """
+        TODO:
+            Create the concept of a reconstruction object that is to be returned.
+            This object should have attributes like resolution, coordinates, convergence flags, etc
         Parameters
         ----------
         projections: ND-array 32 x rows x columns
@@ -96,9 +118,9 @@ class MFI:
         #
         # Dv = np.append(Dv_top, Dv_mid, axis=0)
         # Dv = 0.5*np.append(Dv, Dv_bot, axis=0)
-
-        print('Dh:', Dh.shape, Dh.dtype)
-        print('Dv:', Dv.shape, Dv.dtype)
+        #
+        # print('Dh:', Dh.shape, Dh.dtype)
+        # print('Dv:', Dv.shape, Dv.dtype)
 
         # Norm matrix --------------------------------------------------------------
 
@@ -233,7 +255,7 @@ class MFI:
 
     # @profile
     def reconstruction_gpu(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations,
-                           iterations=False, guess=None, verbose=False):
+                           iterations=False, guess=None, verbose=False, best=False):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
         mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
 
@@ -249,12 +271,14 @@ class MFI:
                 Maximum number of iterations before algorithm gives up
             verbose: boolean, optional
                 Print inner convergence messages. Defaults to `False`
+            best: boolean, optional
+                If set to True, the best
 
         output:
             g_list: array or list of arrays
-                Reconstructed g vector, or multiple g vectors if multiple signals were provided
-            first_g: array
-                First iteration g vector. This is the result of the simple Tikhonov regularization
+                Reconstructed g vector, or multiple g vectors if multiple signals were provided.
+                If `best` is set to True only one emissivity is returned i.e. `g_list` is a one element list.
+                The returned emissivity corresponds to the step of the inner loop which achieved the lowest error.
         """
 
         # Aliasing for cleaner code --------------------------------------------------
@@ -321,6 +345,9 @@ class MFI:
         if iterations:
             g_list.append(cp.asnumpy(g_old.reshape((n_rows, n_cols))))
 
+        # Best g routine ------------------------------------------------------------
+        best_error = 2.1
+
         # Iterative process --------------------------------------------------------
         for f in f_list:
             for i in range(max_iterations - 1):
@@ -361,6 +388,9 @@ class MFI:
 
                 g_old = cp.array(g_new)  # Explicitly copy because python will not
                 # cp.asnumpy(g_old)
+                if best and error < best_error:
+                    g_best = cp.asnumpy(g_new.reshape((n_rows, n_cols)))
+                    best_error = error
 
                 if iterations:
                     g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
@@ -373,14 +403,24 @@ class MFI:
                     print("WARNING: Minimum Fisher did not converge after %d iterations." % i + 2)
                     break
 
+                elif (i > 3) and (error > 0.90):
+                    print("WARNING: Minimum Fisher is not converging, aborting...")
+                    break
+
             if not iterations:
                 g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
+
+            if best:
+                print("Minimum fisher did not converge. Returning the best iterative step with error %.2f%%"
+                      % (best_error * 100.))
+
+                return np.array([g_best])
 
             return np.array(g_list)
 
     def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, inner_max_iterations=10, outer_max_iterations=10):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
-        mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
+        mfi is able to perform multiple reconstructions at a time by employing the rolling iteration.
 
         input:
             signals: array or list of arrays
@@ -445,3 +485,49 @@ class MFI:
         print("Optimal regularization constant: %f" % result.x)
 
         return g_list, first_g, result.x
+
+    # def adapted_newton(self, signals,
+    #                    alpha_iterable, alpha_3, alpha_4, inner_max_iterations,
+    #                    stop_criteria, outer_max_iterations, comparison, goal=1):
+    #
+    #     # Save iteration details --------------------------------------------
+    #     alphas = []
+    #     exponents = []
+    #     results = []
+    #
+    #     # Iterative process -------------------------------------------------
+    #     alpha_exp = np.log10(alpha_iterable)
+    #     for i in range(1, outer_max_iterations + 1):
+    #
+    #         g_list = self.reconstruction_gpu(signals,
+    #                                          stop_criteria=stop_criteria,
+    #                                          alpha_1=10**alpha_exp,
+    #                                          alpha_2=10**alpha_exp,
+    #                                          alpha_3=alpha_3,
+    #                                          alpha_4=alpha_4,
+    #                                          max_iterations=inner_max_iterations,
+    #                                          verbose=True)
+    #
+    #         alphas.append(10**alpha_exp)
+    #         exponents.append(alpha_exp)
+    #         results.append(comparison(g_list[-1]))
+    #
+    #         try:
+    #             # If the slope is negative, decrease the guess
+    #             # If the slope is positive increase the guess
+    #             # If the inner loop does not converge, raise the lower boundary
+    #             # Do we create an upper boundary? Probably yes if the slope is high
+    #             slope = (results[-1] - results[-2]) / (exponents[-1] - exponents[-2])
+    #             intermediate_goal = (goal + results[-1]) / 2.
+    #             # slope = (results[-1] - intermediate_goal) / (exponents[-1] - alpha_exp)
+    #             # (exponents[-1] - alpha_exp) = (results[-1] - intermediate_goal) / slope
+    #             alpha_exp = exponents[-1] - (results[-1] - intermediate_goal) / slope
+    #
+    #
+    #         except IndexError:
+    #             alpha_exp = alpha_exp + 1
+    #
+    #
+    #
+    #     if i == outer_max_iterations:
+    #         print("Adapted Newton method did not converge to a solution")
