@@ -7,6 +7,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from signalSimulation.histPlot import magic_histogram
 from scipy.stats import pearsonr as correlation
+import matplotlib.style as mplstyle
+# mplstyle.use('ggplot')
+mplstyle.use('bmh')
+plt.rcParams.update({'font.size': 12})
+plt.rcParams.update({'figure.dpi': 120})
+
+# orange = (251./255., 170./255., 39./255.)
+orange = (239./255., 123./255., 7./255.)
+blue = (0./255., 159./255., 227./255.)
 
 
 def find_nearest(array, value):
@@ -15,7 +24,43 @@ def find_nearest(array, value):
     return idx, array[idx]
 
 
-plot = True
+script = 'single'  # Choose between 'sweep' or 'single'
+
+##########################################################################################
+                                                                                        ##
+#                             parameters for sweep mode                                 ##
+                                                                                        ##
+if script == 'sweep':                                                                   ##
+    res = 45                                                                            ##
+    mode = 'c'  # Choose between l or c                                                 ##
+    line_interval = [0.00001, 2]                                                        ##
+    line_pts = 30                                                                       ##
+    cone_interval = [0.00001, 2]                                                        ##
+    cone_pts = 30                                                                       ##
+    phantoms = range(21, 22)                                                            ##
+    plot = True                                                                         ##
+                                                                                        ##
+                                                                                        ##
+##########################################################################################
+
+
+##########################################################################################
+                                                                                        ##
+#                       parameters for single alpha mode                                ##
+                                                                                        ##
+elif script == 'single':                                                                ##
+    res = 45                                                                            ##
+    mode = 'l'  # Choose between l or c                                                 ##
+    alpha = 0.0003                                                                      ##
+    phantoms = range(21, 22)                                                            ##
+    plot = True                                                                         ##
+                                                                                        ##
+                                                                                        ##
+##########################################################################################
+
+else:
+    raise ValueError('"%s" is not a valid value for `script`. Choose between "single" and "sweep"')
+
 # def phantom(phantom_id, plot=True):
 """ Perform the MFI reconstruction for the phantom identified by 'phantom_id'
 
@@ -37,23 +82,28 @@ y_array_plot: 1D array
 
 """
 
-# alphas = np.logspace(np.log10(0.06), np.log10(100), 15)
-alphas = np.logspace(np.log10(0.0003), np.log10(0.0015), 15)
-#
-# projections_dic = load_projection("line-approximation-45.npy")[0]
-projections_dic = load_projection("complex-view-cone-45.npy")[0]
+line_projections_dic = load_projection("line-approximation-%d.npy" % res)[0]
+cone_projections_dic = load_projection("complex-view-cone-%d.npy" % res)[0]
 
-projections = projections_dic['projections']
-projections = projections[:32]
+line_projections = line_projections_dic['projections'][:32]
+cone_projections = cone_projections_dic['projections'][:32]
+
+# Renormalization of geometry matrices --------------------------------------------------------
+line_projections *= np.sum(cone_projections.flatten()) / np.sum(line_projections.flatten())
+
+if mode == 'l':
+    projections = line_projections
+    projections_dic = line_projections_dic
+
+elif mode == 'c':
+    projections = cone_projections
+    projections_dic = cone_projections_dic
+
+else:
+    raise ValueError('Mode must be "l" for line approximation or "c" for cone of view')
+
 
 mfi = MFI(projections, width=200., height=200., mask_radius=85.)
-
-# Enable line profiling for performance analyses ------------------------------------------
-
-best_alphas = []
-best_correlations = []
-best_chisquared = []
-phantoms = range(57)
 
 for phantom_id in phantoms:
 
@@ -70,109 +120,142 @@ for phantom_id in phantoms:
     time_index, time = find_nearest(signal_times, reconstruction_time)
     print(("Associated time index is %d, actual stored time is %f" % (time_index, time)))
 
-    # Fixed Regularization constant --------------------------------------------------------------------------
+    if script == 'single':
 
-    # alpha_1 = 0.002
-    # alpha_2 = 0.002
-    # alpha_3 = 1
-    # alpha_4 = 0
-    #
-    # g_list = mfi.reconstruction_gpu(signals=signal_data[time_index],
-    #                                 stop_criteria=0.01,
-    #                                 alpha_1=alpha_1,
-    #                                 alpha_2=alpha_2,
-    #                                 alpha_3=alpha_3,
-    #                                 alpha_4=alpha_4,
-    #                                 max_iterations=15,
-    #                                 verbose=True)
-
-    # Manual search for regularization constant ------------------------------------------------------------
-
-
-    alpha_3 = 1
-    alpha_4 = 0
-
-    phantom_model = np.load("phantoms-45/Phantom-%d.npy" % phantom_number)
-
-    correlations = []
-    chisquared = []
-    converged_list = []
-
-    for alpha_1 in alphas:
-
-        alpha_2 = alpha_1
+        alpha_1 = alpha
+        alpha_2 = alpha
+        alpha_3 = 1
+        alpha_4 = 0
 
         reconstruction = mfi.reconstruction_gpu(signals=signal_data[time_index],
-                                        stop_criteria=0.05,
-                                        alpha_1=alpha_1,
-                                        alpha_2=alpha_2,
-                                        alpha_3=alpha_3,
-                                        alpha_4=alpha_4,
-                                        max_iterations=15,
-                                        verbose=True)
+                                                stop_criteria=0.01,
+                                                alpha_1=alpha_1,
+                                                alpha_2=alpha_2,
+                                                alpha_3=alpha_3,
+                                                alpha_4=alpha_4,
+                                                max_iterations=15,
+                                                verbose=True)
 
         g_list = reconstruction._iterations
 
-        converged_list.append(reconstruction.converged())
+        if plot:
+            magic_histogram(projections_dic=projections_dic,
+                            signals=signal_data[time_index],
+                            emissivity=g_list[-1],
+                            no_bot=True)
 
-        # # Flexible correlation --------------------------------------------------
-        # flexible_correlations = []
-        # for i in range(-2, 3):
-        #     for j in range(-2, 3):
-        #
+    if script == 'sweep':
 
-        correlations.append(correlation(g_list[-1].flatten(), phantom_model)[0])
+        if mode == 'l':
+            alphas = np.logspace(np.log10(line_interval[0]), np.log10(line_interval[1]), line_pts)
+        elif mode == 'c':
+            alphas = np.logspace(np.log10(cone_interval[0]), np.log10(cone_interval[1]), cone_pts)
+        else:
+            raise ValueError('Mode must be "l" for line approximation or "c" for cone of view')
 
-        chisquared.append(np.sum((np.dot(mfi._Pt.T, g_list[-1].flatten()) - signal_data[time_index]) ** 2))
+        best_alphas = []
+        best_correlations = []
+        best_chisquared = []
 
-    # Convergence comes in True and False, convert to 1 and 0
-    converged_list = np.array([(1 if c else 0) for c in converged_list])
-    for i in range(len(converged_list)):
-        converged_list[:i] *= converged_list[i]
+        alpha_3 = 1
+        alpha_4 = 0
 
-    # Mask correlation rankings with the list of values that converged
-    masked_correlations = np.array(correlations) * converged_list
+        phantom_model = np.load("phantoms-%d/Phantom-%d.npy" % (res, phantom_number))
 
-    best_correlations.append(max(masked_correlations))
-    best_alphas.append(alphas[np.argmax(masked_correlations)])
-    best_chisquared.append(chisquared[np.argmax(masked_correlations)])
-    # plt.close('all')
+        correlations = []
+        chisquared = []
+        converged_list = []
 
-    # fig, ax1 = plt.subplots()
-    #
-    # color = 'tab:red'
-    # ax1.semilogx(alphas, correlations, color=color)
-    # ax1.semilogx(alphas, converged_list * 0.5, linestyle='--')
-    # ax1.set_xlabel('alpha')
-    # ax1.set_ylabel('correlation', color=color)
-    # ax1.set_ylim(0, 1)
-    #
-    # ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-    #
-    # color = 'tab:blue'
-    # ax2.set_ylabel(r'$\chi^2$', color=color)  # we already handled the x-label with ax1
-    # ax2.semilogx(alphas, chisquared, color=color)
-    # ax2.set_ylim(0, 10)
-    #
-    # reconstruction = mfi.reconstruction_gpu(signals=signal_data[time_index],
-    #                                         stop_criteria=0.05,
-    #                                         alpha_1=best_alphas[-1],
-    #                                         alpha_2=best_alphas[-1],
-    #                                         alpha_3=alpha_3,
-    #                                         alpha_4=alpha_4,
-    #                                         max_iterations=15,
-    #                                         verbose=True)
-    #
-    # g_list = reconstruction._iterations
-    #
-    # magic_histogram(projections_dic=projections_dic,
-    #                 signals=signal_data[time_index],
-    #                 emissivity=g_list[-1],
-    #                 no_bot=True)
-    #
-    # plt.show()
+        for alpha_1 in alphas:
 
-np.save("cone_3_correlations.npy", np.array([best_alphas, best_correlations, best_chisquared]))
+            alpha_2 = alpha_1
+
+            reconstruction = mfi.reconstruction_gpu(signals=signal_data[time_index],
+                                                    stop_criteria=0.02,
+                                                    alpha_1=alpha_1,
+                                                    alpha_2=alpha_2,
+                                                    alpha_3=alpha_3,
+                                                    alpha_4=alpha_4,
+                                                    max_iterations=15,
+                                                    verbose=True)
+
+            g_list = reconstruction._iterations
+
+            converged_list.append(reconstruction.converged())
+
+            # # Flexible correlation --------------------------------------------------
+            # flexible_correlations = []
+            # for i in range(-2, 3):
+            #     for j in range(-2, 3):
+            #
+
+            correlations.append(correlation(g_list[-1].flatten(), phantom_model)[0])
+
+            chisquared.append(np.sum((np.dot(mfi._Pt.T, g_list[-1].flatten()) - signal_data[time_index]) ** 2))
+
+        # Convergence comes in True and False, convert to 1 and 0
+        converged_list = np.array([(1 if c else 0) for c in converged_list])
+        for i in range(len(converged_list)):
+            converged_list[:i] *= converged_list[i]
+
+        # Mask correlation rankings with the list of values that converged
+        correlations = np.array(correlations)
+        correlations[np.isnan(correlations)] = 0
+        masked_correlations = correlations * converged_list
+
+        best_correlations.append(max(masked_correlations))
+        best_alphas.append(alphas[np.argmax(masked_correlations)])
+        best_chisquared.append(chisquared[np.argmax(masked_correlations)])
+        # plt.close('all')
+
+        if plot:
+
+            fig, ax1 = plt.subplots()
+
+            lns1 = ax1.semilogx(alphas, correlations, color=orange, label='correlation')
+            lns2 = ax1.semilogx(alphas, converged_list * 0.5, label='convergence threshold', linestyle='--')
+            ax1.set_xlabel(r'$\lambda$')
+            ax1.set_ylabel('correlation', color=orange)
+            ax1.set_ylim(-0.05, 1)
+
+            ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+            ax2.set_ylabel(r'$\chi^2$', color=blue)  # we already handled the x-label with ax1
+            lns3 = ax2.semilogx(alphas, chisquared, color=blue, label=r'$\chi^2$')
+            ax2.set_ylim(-0.5, 10)
+
+            lns = lns1 + lns2 + lns3
+            labs = [l.get_label() for l in lns]
+            ax2.legend(lns, labs, loc=0)
+
+            if mode == 'c':
+                plt.title("Cone")
+            elif mode == 'l':
+                plt.title("Line")
+            else:
+                raise ValueError('Mode must be "l" for line approximation or "c" for cone of view')
+
+            plt.tight_layout()
+
+            reconstruction = mfi.reconstruction_gpu(signals=signal_data[time_index],
+                                                    stop_criteria=0.05,
+                                                    alpha_1=best_alphas[-1],
+                                                    alpha_2=best_alphas[-1],
+                                                    alpha_3=alpha_3,
+                                                    alpha_4=alpha_4,
+                                                    max_iterations=15,
+                                                    verbose=True)
+
+            g_list = reconstruction._iterations
+
+            magic_histogram(projections_dic=projections_dic,
+                            signals=signal_data[time_index],
+                            emissivity=g_list[-1],
+                            no_bot=True)
+
+            plt.show()
+
+# np.save("cone_3_correlations.npy", np.array([best_alphas, best_correlations, best_chisquared]))
 # Adaptive regularization constant -------------------------------------------------------------------
 
 # alpha_3 = 1
