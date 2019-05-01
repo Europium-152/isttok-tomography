@@ -18,20 +18,33 @@ plt.close("all")
 plt.rcParams.update({'font.size': 18})
 
 
-class Tomogram:
-    """TODO: Investigate about overwriting getter methods for attributes"""
+class InnerLoopOutput:
+    """During the inner loop a tomogram is generated for a given regularization.
+    The tomogram can be found iteratively (MFI) or directly (Linear Tikhonov).
+    TODO: Investigate about overwriting getter methods for attributes
 
-    def __init__(self, values, n_rows, n_cols, convergence_flag):
-        self._values = values
+    Parameters
+    ----------
+    iterations: ndarray
+        list of the emissivity arrays ordered cronologically
+    n_rows, n_cols: int
+        Number of rows and columns on the reconstructed profile
+    convergence_flag: boolean, optional
+        If `True` it is assumed that the inner loop has converged in the sense that
+        the successive iterations lead to progressively smaller changes in the emissivity profile.
+    """
+
+    def __init__(self, iterations, n_rows, n_cols, convergence_flag=True):
+        self._iterations = iterations
         self._n_rows = n_rows
         self._n_cols = n_cols
         self._converged = convergence_flag
 
     def asarray(self):
-        return np.array(self._values)
+        return np.array(self._iterations[-1])
 
     def asmatrix(self):
-        return np.array(self._values).reshape((self._n_rows, self._n_cols))
+        return np.array(self._iterations[-1]).reshape((self._n_rows, self._n_cols))
 
     def converged(self):
         return self._converged
@@ -255,30 +268,28 @@ class MFI:
 
     # @profile
     def reconstruction_gpu(self, signals, stop_criteria, alpha_1, alpha_2, alpha_3, alpha_4, max_iterations,
-                           iterations=False, guess=None, verbose=False, best=False):
+                           iterations=False, guess=None, verbose=False):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
-        mfi is able to perform multiple reconstruction at a time by employing the rolling iteration.
 
         input:
-            signals: array or list of arrays
-                should be an array of single measurements from each sensor ordered like in "projections",
-                or a list of such arrays
+            signals: array
+                Array of signals from each sensor ordered like in "projections".
             stop_criteria: float
-                average different between iterations to admit convergence as a percentage.
+                Average different between iterations to admit convergence as a percentage between 0 and 1.
             alpha_1, alpha_2, alpha_3, alpha_4: float
-                regularization weights. Horizontal derivative. Vertical derivative. Outside Norm. Inside Norm.
+                Regularization weights. Horizontal derivative. Vertical derivative. Outside Norm. Inside Norm.
             max_iterations: int
-                Maximum number of iterations before algorithm gives up
+                Maximum number of iterations before algorithm admits non-convergence
+            iterations: boolean, optional
+                If set to `True`, returns every iteration step as a reconstruction. Defaults to False.
+            guess: ndarray, optional
+                Initial guess for the reconstructed profile.
             verbose: boolean, optional
                 Print inner convergence messages. Defaults to `False`
-            best: boolean, optional
-                If set to True, the best
 
         output:
-            g_list: array or list of arrays
-                Reconstructed g vector, or multiple g vectors if multiple signals were provided.
-                If `best` is set to True only one emissivity is returned i.e. `g_list` is a one element list.
-                The returned emissivity corresponds to the step of the inner loop which achieved the lowest error.
+            inner_loop_output: InnerLoopOutput class instance
+                Object holding the data from the mfi inner loop.
         """
 
         # Aliasing for cleaner code --------------------------------------------------
@@ -299,14 +310,8 @@ class MFI:
         ItIi = self._gpu_ItIi
         ItIo = self._gpu_ItIo
 
-        # Discriminate between single and multiple reconstructions mode --------------
-        _signals = cp.array(signals, dtype=cp.float32)
-        if len(_signals.shape) == 1:
-            f_list = [_signals]
-        elif len(_signals.shape) == 2:
-            f_list = _signals
-        else:
-            raise ValueError("signals must be 1 dim for single reconstruction or 2 dim for multiple reconstruction")
+        # Instantiate f vector of signals --------------
+        f = cp.array(signals, dtype=cp.float32)
 
         # -----------------------------  FIRST ITERATION  -------------------------------------------------------------
 
@@ -338,87 +343,78 @@ class MFI:
         M = cp.dot(inv, Pt)
         # cp.asnumpy(M)
 
-        g_old = cp.dot(M, f_list[0])
+        g_old = cp.dot(M, f)
         # cp.asnumpy(g_old)
 
-        first_g = cp.array(g_old)
+        # first_g = cp.array(g_old)
         if iterations:
             g_list.append(cp.asnumpy(g_old.reshape((n_rows, n_cols))))
 
-        # Best g routine ------------------------------------------------------------
-        best_error = 2.1
-
         # Iterative process --------------------------------------------------------
-        for f in f_list:
-            for i in range(max_iterations - 1):
+        for i in range(2, max_iterations + 1):
 
-                g_old[g_old < 1e-20] = 1e-20
+            g_old[g_old < 1e-20] = 1e-20
 
-                W = cp.diag(1.0 / cp.abs(g_old))
-                # cp.asnumpy(W)
+            W = cp.diag(1.0 / cp.abs(g_old))
+            # cp.asnumpy(W)
 
-                DtWDh = cp.dot(Dht, cp.dot(W, Dh))
-                # cp.asnumpy(DtWDh)
-                DtWDv = cp.dot(Dvt, cp.dot(W, Dv))
-                # cp.asnumpy(DtWDv)
+            DtWDh = cp.dot(Dht, cp.dot(W, Dh))
+            # cp.asnumpy(DtWDh)
+            DtWDv = cp.dot(Dvt, cp.dot(W, Dv))
+            # cp.asnumpy(DtWDv)
 
-                inv = cp.linalg.inv(alpha_1 * DtWDh + alpha_2 * DtWDv + PtP + alpha_3 * ItIo + alpha_4 * ItIi)
-                # cp.asnumpy(inv)
+            inv = cp.linalg.inv(alpha_1 * DtWDh + alpha_2 * DtWDv + PtP + alpha_3 * ItIo + alpha_4 * ItIi)
+            # cp.asnumpy(inv)
 
-                M = cp.dot(inv, Pt)
-                # cp.asnumpy(M)
+            M = cp.dot(inv, Pt)
+            # cp.asnumpy(M)
 
-                g_new = cp.dot(M, f)
-                # cp.asnumpy(g_new)
+            g_new = cp.dot(M, f)
+            # cp.asnumpy(g_new)
 
-                # plt.figure()
-                # plt.imshow(g_new.reshape((n_rows, n_cols)))
+            # plt.figure()
+            # plt.imshow(g_new.reshape((n_rows, n_cols)))
 
-                # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
-                # error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
-                # error = cp.sum(cp.abs(g_new - g_old)**2) / cp.max(g_new)**2
-                cov = 1. - 0.5*((cp.corrcoef(g_new, g_old)) +
-                                  cp.corrcoef(g_new.reshape((n_rows, n_cols)).T.flatten(),
-                                              g_old.reshape((n_rows, n_cols)).T.flatten()))
-                error = cov[0, 1]
-                # cp.asnumpy(error)
+            # error = np.sum(np.abs((g_new[g_new > 1e-5] - g_old[g_new > 1e-5]) / g_new[g_new > 1e-5])) / len(g_new > 1e-5)
+            # error = cp.sum(cp.abs(g_new - g_old)) / cp.sum(cp.abs(first_g))
+            # error = cp.sum(cp.abs(g_new - g_old)**2) / cp.max(g_new)**2
+            cov = 1. - 0.5*((cp.corrcoef(g_new, g_old)) +
+                              cp.corrcoef(g_new.reshape((n_rows, n_cols)).T.flatten(),
+                                          g_old.reshape((n_rows, n_cols)).T.flatten()))
+            error = cov[0, 1]
+            # cp.asnumpy(error)
 
-                if verbose:
-                    print("Iteration %d changed by %.4f%%" % (i + 2, error * 100.))
+            if verbose:
+                print("Iteration %d changed by %.4f%%" % (i, error * 100.))
 
-                g_old = cp.array(g_new)  # Explicitly copy because python will not
-                # cp.asnumpy(g_old)
-                if best and error < best_error:
-                    g_best = cp.asnumpy(g_new.reshape((n_rows, n_cols)))
-                    best_error = error
+            g_old = cp.array(g_new)  # Explicitly copy because python will not
+            # cp.asnumpy(g_old)
 
-                if iterations:
-                    g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
-
-                if error < stop_criteria:
-                    print("Minimum Fisher converged after %d iterations." % (i + 2))
-                    break
-
-                elif i == (max_iterations - 1):
-                    print("WARNING: Minimum Fisher did not converge after %d iterations." % i + 2)
-                    break
-
-                elif (i > 3) and (error > 0.90):
-                    print("WARNING: Minimum Fisher is not converging, aborting...")
-                    break
-
-            if not iterations:
+            if iterations:
                 g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
 
-            if best:
-                print("Minimum fisher did not converge. Returning the best iterative step with error %.2f%%"
-                      % (best_error * 100.))
+            if ((i >= 5) and (error > 0.90)) or cp.isnan(error):
+                print("WARNING: Minimum Fisher is not converging, aborting...")
+                convergence_flag = False
+                break
 
-                return np.array([g_best])
+            elif error < stop_criteria:
+                print("Minimum Fisher converged after %d iterations." % i)
+                convergence_flag = True
+                break
 
-            return np.array(g_list)
+            elif i == max_iterations:  # Break just before the `for loop` does
+                print("WARNING: Minimum Fisher did not converge after %d iterations." % i)
+                convergence_flag = False
+                break
 
-    def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, inner_max_iterations=10, outer_max_iterations=10):
+        if not iterations:
+            g_list.append(cp.asnumpy(g_new.reshape((n_rows, n_cols))))
+
+        # return np.array(g_list)
+        return InnerLoopOutput(iterations=g_list, n_rows=n_rows, n_cols=n_cols, convergence_flag=convergence_flag)
+
+    def tomogram(self, signals, stop_criteria, comparison, alpha_3, alpha_4, inner_max_iter=10, outer_max_iter=10):
         """Apply the minimum fisher reconstruction algorithm for a given set of measurements from tomography.
         mfi is able to perform multiple reconstructions at a time by employing the rolling iteration.
 
@@ -435,9 +431,9 @@ class MFI:
                 TODO: Implement the chi square option and use it as default
             alpha_3, alpha_4: float
                 regularization weights: 3 - Outside Norm. 4 - Inside Norm.
-            inner_max_iterations: int
+            inner_max_iter: int
                 Maximum number of iterations of the inner MFI loop
-            outer_max_iterations: int
+            outer_max_iter: int
                 Maximum number of iterations of the outer loop that optimizes the regularization parameter
 
         output:
@@ -452,13 +448,13 @@ class MFI:
             alpha_iterable = 10.**alpha_exponent
             # Call reconstruction routine --------
             g_list = self.reconstruction_gpu(signals,
-                                                  stop_criteria=stop_criteria,
-                                                  alpha_1=alpha_iterable,
-                                                  alpha_2=alpha_iterable,
-                                                  alpha_3=alpha_3,
-                                                  alpha_4=alpha_4,
-                                                  max_iterations=inner_max_iterations,
-                                                  verbose=True)
+                                             stop_criteria=stop_criteria,
+                                             alpha_1=alpha_iterable,
+                                             alpha_2=alpha_iterable,
+                                             alpha_3=alpha_3,
+                                             alpha_4=alpha_4,
+                                             max_iterations=inner_max_iter,
+                                             verbose=True)
 
             # Compare with the phantom model -----
             # return -correlation(g_list[-1].flatten(), phantom_model)[0]
@@ -471,7 +467,7 @@ class MFI:
                                  bounds=(-20, 0),
                                  # bracket=(-10, -3),
                                  tol=0.0000000001,
-                                 options={'maxiter': outer_max_iterations, 'disp': 3})
+                                 options={'maxiter': outer_max_iter, 'disp': 3})
 
         g_list, first_g = self.reconstruction_gpu(signals,
                                                   stop_criteria=stop_criteria,
@@ -479,7 +475,7 @@ class MFI:
                                                   alpha_2=10.**result.x,
                                                   alpha_3=alpha_3,
                                                   alpha_4=alpha_4,
-                                                  max_iterations=inner_max_iterations,
+                                                  max_iterations=inner_max_iter,
                                                   verbose=True)
 
         print("Optimal regularization constant: %f" % result.x)
