@@ -17,8 +17,8 @@ print(df)
 
 # -----------------------------------------------------------------------------------------
 
-n_rows = 80  # y-axis pixel resolution
-n_cols = 80  # x-axis pixel resolution
+n_rows = 45  # y-axis pixel resolution
+n_cols = 45  # x-axis pixel resolution
 
 x_min = -100.
 x_max = +100.
@@ -54,13 +54,15 @@ projections = []
 
 for row in df.itertuples():
     line = LineString([(row.x0, row.y0), (row.x1, row.y1)])
+    print(90 - np.degrees(np.arctan((row.y1 - row.y0) / (row.x1 - row.x0))))
     projection = np.zeros((n_rows, n_cols))
     for segment in line.difference(grid):
         xx, yy = segment.xy
         x_mean = np.mean(xx)
         y_mean = np.mean(yy)
         (i, j) = transform(x_mean, y_mean)
-        projection[i,j] = segment.length
+        projection[i, j] = segment.length
+    projection *= row.etendue  # Correct for the etendue
     projections.append(projection)
     
 projections = np.array(projections)
@@ -77,14 +79,15 @@ y_coord = np.linspace(y_max - res_y * 0.5, y_min + res_y * 0.5, num=n_rows)
 
 proj_dic = {'x': x_coord, 'y': y_coord, 'projections': projections}
 
-fname = 'projections/line-approximation-80.npy'
+fname = 'projections/line-approximation-45-etendue.npy'
 print('Writing:', fname)
 np.save(fname, [proj_dic])
 
 # -------------------------------------------------------------------------
 
 vmin = 0.
-vmax = np.sqrt(((x_max-x_min)/n_cols)**2 + ((y_max-y_min)/n_rows)**2)
+# vmax = np.sqrt(((x_max-x_min)/n_cols)**2 + ((y_max-y_min)/n_rows)**2)
+vmax = np.max(projections)
 
 ni = 4
 nj = 4
