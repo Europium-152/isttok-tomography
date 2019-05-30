@@ -317,13 +317,13 @@ def prepare_plasma_signals(shot, plot=False):
             data = x.values - detrend
             time = np.array(x.times, dtype=np.float32)
 
-            # n = 1
-            # data = np.cumsum(data, axis=0)
-            # data = (data[n:] - data[:-n]) / n
-            # data = data[::n]
-            # data = np.clip(data, 0., None)
-            # time = time[n // 2::n]
-            # time = time[:data.shape[0]]
+            n = 1
+            data = np.cumsum(data, axis=0)
+            data = (data[n:] - data[:-n]) / n
+            data = data[::n]
+            data = np.clip(data, 0., None)
+            time = time[n // 2::n]
+            time = time[:data.shape[0]]
             signals_data.append(data)
 
             try:
@@ -334,7 +334,7 @@ def prepare_plasma_signals(shot, plot=False):
 
             if plot:
                 axes[plt_index].plot(time, data, label=tag + ' detrended')
-                axes[plt_index].plot(time, x.values, label=tag)
+                axes[plt_index].plot(x.times, x.values, label=tag)
                 plt_index += 1
 
     # -------------------------------------------------------------------------

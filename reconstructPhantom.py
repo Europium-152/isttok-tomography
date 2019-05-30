@@ -1,4 +1,5 @@
 from projectionSelector import load_projection
+import pandas as pd
 # from optimizedC.tomography import MFI
 from tomography import MFI
 from exportSignals import prepare_signals
@@ -7,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from signalSimulation.histPlot import magic_histogram
 from scipy.stats import pearsonr as correlation
+from skimage.measure import compare_ssim
 import matplotlib.style as mplstyle
 # mplstyle.use('ggplot')
 mplstyle.use('bmh')
@@ -24,7 +26,14 @@ def find_nearest(array, value):
     return idx, array[idx]
 
 
+def rerange(x, lowlim=0., uplim=1.):
+    """Remap x onto [min, max] interval"""
+
+    return (x - np.min(x)) / (np.max(x) - np.min(x)) * (uplim - lowlim) + lowlim
+
+
 script = 'single'  # Choose between 'sweep' or 'single'
+df = pd.read_csv('data.csv')
 
 ##########################################################################################
                                                                                         ##
@@ -33,13 +42,14 @@ script = 'single'  # Choose between 'sweep' or 'single'
 if script == 'sweep':                                                                   ##
     res = 45                                                                            ##
     mode = 'c'  # Choose between l or c                                                 ##
-    line_interval = [0.00001, 2]                                                        ##
-    line_pts = 30                                                                       ##
-    cone_interval = [0.00001, 2]                                                        ##
-    cone_pts = 30                                                                       ##
-    phantoms = range(21, 22)                                                            ##
-    plot = True                                                                         ##
-                                                                                        ##
+    line_interval = [0.00005, 0.001]                                                       ##
+    line_pts = 40                                                                       ##
+    cone_interval = [0.00005, 0.001]                                                       ##
+    cone_pts = 40                                                                       ##
+    phantoms = range(21, 22)                                                              ##
+    plot_correlation_vs_alpha = True                                                    ##
+    plot_best_alpha = True                                                              ##
+    plot_all_alphas = False                                                              ##
                                                                                         ##
 ##########################################################################################
 
@@ -51,8 +61,8 @@ if script == 'sweep':                                                           
 elif script == 'single':                                                                ##
     res = 45                                                                            ##
     mode = 'l'  # Choose between l or c                                                 ##
-    alpha = 0.0003                                                                      ##
-    phantoms = range(21, 22)                                                            ##
+    alpha = 0.000079                                                                  ##
+    phantoms = range(21, 22)                                                              ##
     plot = True                                                                         ##
                                                                                         ##
                                                                                         ##
@@ -82,7 +92,7 @@ y_array_plot: 1D array
 
 """
 
-line_projections_dic = load_projection("line-approximation-%d.npy" % res)[0]
+line_projections_dic = load_projection("line-approximation-%d-etendue.npy" % res)[0]
 cone_projections_dic = load_projection("complex-view-cone-%d.npy" % res)[0]
 
 line_projections = line_projections_dic['projections'][:32]
@@ -104,6 +114,10 @@ else:
 
 
 mfi = MFI(projections, width=200., height=200., mask_radius=85.)
+
+best_alphas = []
+best_correlations = []
+best_chisquared = []
 
 for phantom_id in phantoms:
 
@@ -127,8 +141,10 @@ for phantom_id in phantoms:
         alpha_3 = 1
         alpha_4 = 0
 
+        phantom_model = np.load("phantoms-%d-circle/Phantom-%d.npy" % (res, phantom_number))
+
         reconstruction = mfi.reconstruction_gpu(signals=signal_data[time_index],
-                                                stop_criteria=0.01,
+                                                stop_criteria=0.02,
                                                 alpha_1=alpha_1,
                                                 alpha_2=alpha_2,
                                                 alpha_3=alpha_3,
@@ -137,6 +153,8 @@ for phantom_id in phantoms:
                                                 verbose=True)
 
         g_list = reconstruction._iterations
+
+        print("SSIM: %f" % compare_ssim(rerange(g_list[-1]), rerange(phantom_model.reshape((res, res)))))
 
         if plot:
             magic_histogram(projections_dic=projections_dic,
@@ -153,14 +171,10 @@ for phantom_id in phantoms:
         else:
             raise ValueError('Mode must be "l" for line approximation or "c" for cone of view')
 
-        best_alphas = []
-        best_correlations = []
-        best_chisquared = []
-
         alpha_3 = 1
         alpha_4 = 0
 
-        phantom_model = np.load("phantoms-%d/Phantom-%d.npy" % (res, phantom_number))
+        phantom_model = np.load("phantoms-%d-circle/Phantom-%d.npy" % (res, phantom_number))
 
         correlations = []
         chisquared = []
@@ -189,9 +203,16 @@ for phantom_id in phantoms:
             #     for j in range(-2, 3):
             #
 
-            correlations.append(correlation(g_list[-1].flatten(), phantom_model)[0])
+            # correlations.append(correlation(g_list[-1].flatten(), phantom_model)[0])
+            correlations.append(compare_ssim(rerange(g_list[-1]), rerange(phantom_model.reshape((res, res)))))
 
             chisquared.append(np.sum((np.dot(mfi._Pt.T, g_list[-1].flatten()) - signal_data[time_index]) ** 2))
+
+            if plot_all_alphas:
+                magic_histogram(projections_dic=projections_dic,
+                                signals=signal_data[time_index],
+                                emissivity=g_list[-1],
+                                no_bot=True)
 
         # Convergence comes in True and False, convert to 1 and 0
         converged_list = np.array([(1 if c else 0) for c in converged_list])
@@ -208,7 +229,7 @@ for phantom_id in phantoms:
         best_chisquared.append(chisquared[np.argmax(masked_correlations)])
         # plt.close('all')
 
-        if plot:
+        if plot_correlation_vs_alpha:
 
             fig, ax1 = plt.subplots()
 
@@ -237,8 +258,12 @@ for phantom_id in phantoms:
 
             plt.tight_layout()
 
+            plt.show()
+
+        if plot_best_alpha:
+
             reconstruction = mfi.reconstruction_gpu(signals=signal_data[time_index],
-                                                    stop_criteria=0.05,
+                                                    stop_criteria=0.02,
                                                     alpha_1=best_alphas[-1],
                                                     alpha_2=best_alphas[-1],
                                                     alpha_3=alpha_3,
@@ -252,16 +277,36 @@ for phantom_id in phantoms:
                             signals=signal_data[time_index],
                             emissivity=g_list[-1],
                             no_bot=True)
-
+            #
             plt.show()
 
-# np.save("cone_3_correlations.npy", np.array([best_alphas, best_correlations, best_chisquared]))
+if script == 'sweep':
+    for phantom_id, corr, alpha, chi in zip(phantoms, best_correlations, best_alphas, best_chisquared):
+        if mode == 'l':
+            df.at[phantom_id, 'corr-los'] = corr
+            df.at[phantom_id, 'alpha-los'] = alpha
+            df.at[phantom_id, 'chi-los'] = chi
+            print("\nResults for phantom %d, using Line of Sight:\n" % phantom_id)
+        if mode == 'c':
+            df.at[phantom_id, 'corr-vos'] = corr
+            df.at[phantom_id, 'alpha-vos'] = alpha
+            df.at[phantom_id, 'chi-vos'] = chi
+            print("\nResults for phantom %d, using Volume of Sight:\n" % phantom_id)
+
+        print("Best correlation achieved: %f" % corr)
+        print("Corresponding alpha: %f" % alpha)
+        print("Corresponding chi-s: %f" % chi)
+
+df.to_csv('data.csv', index=False)
+df.to_excel('data.xlsx')
+
+# np.save("line_4_correlations.npy", np.array([best_alphas, best_correlations, best_chisquared]))
 # Adaptive regularization constant -------------------------------------------------------------------
 
 # alpha_3 = 1
 # alpha_4 = 0
 #
-# phantom_model = np.load("phantoms-45/Phantom-%d.npy" % phantom_number)
+# phantom_model = np.load("phantoms-45-gaussian/Phantom-%d.npy" % phantom_number)
 #
 # def comparison(G):
 #     return -correlation(G.flatten(), phantom_model)[0]

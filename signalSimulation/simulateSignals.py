@@ -2,10 +2,12 @@ import numpy as np
 from exportSignals import export_signals
 import matplotlib.pyplot as plt
 from calibrationShots import shots, keys, times
+import os
+_module_path = os.path.dirname(__file__)
 
-plt.close("all")
-
-plt.rcParams.update({'font.size': 18})
+# plt.close("all")
+#
+# plt.rcParams.update({'font.size': 18})
 
 
 def find_nearest(array, value):
@@ -48,7 +50,7 @@ def simulate_signal(phantom_number, projections, reconstruction_time='auto', plo
 
     # Emissivity vector g of the simulated phantom ---------------------------------------------------------------------
 
-    g = np.load("../phantoms/Phantom-%d.npy" % phantom_number)
+    g = np.load(os.path.join(_module_path, "../phantoms-45-gaussian/Phantom-%d.npy") % phantom_number)
 
     # Obtain the simulated signals, simulated f vector -----------------------------------------------------------------
 

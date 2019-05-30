@@ -10,9 +10,9 @@ from simulateSignals import simulate_signal
 absolute_deviation = [[] for i in range(32)]
 relative_deviation = [[] for i in range(32)]
 
-# phantoms = [2]
+# phantoms-45-gaussian = [2]
 phantoms = np.arange(33)
-# phantoms = np.arange(9)
+# phantoms-45-gaussian = np.arange(9)
 
 plot = False
 # plot = True
@@ -34,7 +34,7 @@ for phantom in phantoms:
         out = fig.add_axes([0.55, 0.05, 0.4, 0.4])
         top = fig.add_axes([0.05, 0.55, 0.4, 0.4])
 
-    phantom_profile = np.load("../phantoms/Phantom-%d.npy" % phantom_number)
+    phantom_profile = np.load("../phantoms-45-gaussian/Phantom-%d.npy" % phantom_number)
     phantom_profile = phantom_profile.reshape((gp.n_rows, gp.n_cols))
 
     if plot:
@@ -61,7 +61,7 @@ for phantom in phantoms:
         out.invert_yaxis()
         out.set_xlim(0, 4)
 
-        plt.savefig("D:/desktop/phantoms/%d.png" % phantom)
+        plt.savefig("D:/desktop/phantoms-45-gaussian/%d.png" % phantom)
 
 sensor = 26
 plt.figure()

@@ -37,7 +37,7 @@ for phantom_number in np.arange(1):
     export_signals(key)
 
     # Load phantom model for comparison
-    phantom_model = np.load("phantoms/Phantom-%d.npy" % phantom_number)
+    phantom_model = np.load("phantoms-45-gaussian/Phantom-%d.npy" % phantom_number)
 
     # Perform reconstruction for the signals -------------------------------------------------------------------------------
 

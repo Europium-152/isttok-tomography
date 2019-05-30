@@ -1,5 +1,5 @@
 """
-Create an emissivity Profile for the experimental phantoms-45
+Create an emissivity Profile for the experimental phantoms-45-gaussian
 """
 
 
@@ -45,7 +45,7 @@ def em_circular(x, y, x0, y0, radius, height, outside_value=0):
         Returns height if point (x, y) lies inside the circle, and returns `outside_value` otherwise
     """
 
-    if (x - x0) ** 2 + (y - y0) ** 2 < radius ** 2:
+    if ((x - x0) ** 2 + (y - y0) ** 2) < (radius ** 2):
         return height
     else:
         return outside_value
@@ -86,7 +86,7 @@ G = np.zeros((n_rows, n_cols))  # G matrix
 
 index = 0  # Phantom to compute the G profile
 
-for index in np.arange(0, 1):
+for index in np.arange(0, 57):
 
     G = np.zeros((n_rows, n_cols))  # G matrix
 
@@ -94,6 +94,9 @@ for index in np.arange(0, 1):
     mu_x, mu_y = xy_positions[index]  # phantom coordinates
     fwhm = 4.  # Use full width half maximum as the source diameter (4mm)
     area = 1.  # Value of the gaussian integral
+
+    radius = 2.
+    height = 1.
 
     for i in range(n_rows):
         for j in range(n_cols):
@@ -106,27 +109,37 @@ for index in np.arange(0, 1):
             x = (x1 + x2) / 2.
             y = (y1 + y2) / 2.
 
-            if ((x - mu_x) ** 2 + (y - mu_y) ** 2) < (5 * fwhm) ** 2:
+            # GAUSSIAN PROFILE -------------------------------------------------------------------------------------
+            # # Implement a cutoff to calculations where the emissivity is expected to be zero
+            # if ((x - mu_x) ** 2 + (y - mu_y) ** 2) < (5 * fwhm) ** 2:
+            #     # The value at each pixel is the average value inside (integral divided by area)
+            #     G[i, j], _ = dblquad(em_gaussian, y1, y2, lambda _: x1, lambda _: x2, args=(mu_x, mu_y, area, fwhm))
+            #     G[i, j] /= res_x * res_y
+
+            # CIRCULAR PROFILE -------------------------------------------------------------------------------------
+            if ((x - mu_x) ** 2 + (y - mu_y) ** 2) < (5 * radius) ** 2:
                 # The value at each pixel is the average value inside (integral divided by area)
-                G[i, j], _ = dblquad(em_gaussian, y1, y2, lambda _: x1, lambda _: x2, args=(mu_x, mu_y, area, fwhm))
+                G[i, j], _ = dblquad(em_circular, y1, y2, lambda _: x1, lambda _: x2, args=(mu_x, mu_y, radius, height))
                 G[i, j] /= res_x * res_y
 
-    # x and y arrays for plotting purposes. Coordinates represent the top left corner of each pixel
-    x_array_plot = (np.arange(n_cols + 1) - n_cols / 2.) * res_x
-    y_array_plot = (n_rows / 2. - np.arange(n_rows + 1)) * res_y
-
-    plt.figure()
-    plt.pcolormesh(x_array_plot, y_array_plot, G, vmin=None, vmax=None)
-    plt.gca().set_aspect('equal', anchor='C')
-    # plt.axis('scaled')
-    circle = plt.Circle((0., 0.), 85., color='w', fill=False)
-    plt.gca().add_artist(circle)
-    cbar = plt.colorbar()
-    cbar.set_label("\nIntensity (arb. units)", fontsize=label_fontsize)
-    plt.xlabel("R (mm)", fontsize=label_fontsize)
-    plt.ylabel("z (mm)", fontsize=label_fontsize)
-    plt.show()
+    # # x and y arrays for plotting purposes. Coordinates represent the top left corner of each pixel
+    # x_array_plot = (np.arange(n_cols + 1) - n_cols / 2.) * res_x
+    # y_array_plot = (n_rows / 2. - np.arange(n_rows + 1)) * res_y
+    #
+    # plt.figure()
+    # plt.pcolormesh(x_array_plot, y_array_plot, G, vmin=None, vmax=None)
+    # plt.gca().set_aspect('equal', anchor='C')
+    # # plt.axis('scaled')
+    # circle = plt.Circle((0., 0.), 85., color='w', fill=False)
+    # plt.gca().add_artist(circle)
+    # cbar = plt.colorbar()
+    # cbar.set_label("\nIntensity (arb. units)", fontsize=label_fontsize)
+    # plt.xlabel("R (mm)", fontsize=label_fontsize)
+    # plt.ylabel("z (mm)", fontsize=label_fontsize)
+    # plt.xlim(-4, 4)
+    # plt.ylim(-4, 4)
+    # plt.show()
 
     # Save the phantom emissivity in a file in vector form -------------------------------------------------------------
 
-    # np.save("phantoms-45/Phantom-%d.npy" % index, G.flatten())
+    np.save("phantoms-45-circle/Phantom-%d.npy" % index, G.flatten())
